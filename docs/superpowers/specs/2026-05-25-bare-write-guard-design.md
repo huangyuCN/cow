@@ -20,7 +20,7 @@
 - 运行期检测裸写（仅作未来可选补充）。
 - 强制「必须在带 `*TxContext` 参数的函数内」才允许调用代理（本工具只禁裸写，不绑 ctx 作用域）。
 - 拦截 `json.Unmarshal` / `bson.Unmarshal` 的反射写入（静态不可见）；约定 Unmarshal 后业务仍不得裸写，或后续 DTO 分层。
-- AST 批量改写存量（`save_historey.md` 设想）；另立项，不替代本分析器。
+- AST 批量改写存量：见 [`2026-05-25-undorewrite-codemod-design.md`](2026-05-25-undorewrite-codemod-design.md)（`undorewrite`），不替代本分析器。
 
 ## 3. 方案选择
 
