@@ -4,9 +4,7 @@
 
 请勿在公开 Issue 中讨论可利用的安全问题。
 
-优先通过 GitHub **Security Advisories** 私下报告：打开仓库 → **Security** → **Report a vulnerability**。
-
-若无法使用上述方式，请发邮件至：**huangyu86@gmail.com**。
+请通过 GitHub **Security Advisories** 私下报告：打开仓库 → **Security** → **Report a vulnerability**。
 
 ## 响应
 
