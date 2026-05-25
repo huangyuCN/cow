@@ -5,6 +5,11 @@
 //	go install ./cmd/undocheck
 //	go vet -vettool=$(go env GOPATH)/bin/undocheck ./...
 //
+// 历史裸写批量改写（默认 dry-run，确认后加 -w）：
+//
+//	go install ./cmd/undorewrite
+//	undorewrite ./yourpkg/...
+//
 // +k8s:deepcopy-gen=package
 // +cow:undoproxy-gen=package
 // +groupName=cow.huanghaiyu.cn

@@ -1,13 +1,17 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/huangyuCN/cow/internal/cowgen"
+)
 
 func TestClassifyViaLoad(t *testing.T) {
 	pkg, err := loadPackage("github.com/huangyuCN/cow/cmd/undoproxy-gen/testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err := buildGraph(pkg)
+	g, err := cowgen.BuildGraph(pkg)
 	if err != nil {
 		t.Fatal(err)
 	}

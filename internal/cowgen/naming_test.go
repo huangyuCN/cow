@@ -1,6 +1,10 @@
-package main
+package cowgen_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/huangyuCN/cow/internal/cowgen"
+)
 
 func TestSingular(t *testing.T) {
 	tests := []struct{ in, want string }{
@@ -9,14 +13,14 @@ func TestSingular(t *testing.T) {
 		{"Assets", "Asset"},
 	}
 	for _, tc := range tests {
-		if got := singular(tc.in); got != tc.want {
-			t.Fatalf("singular(%q)=%q want %q", tc.in, got, tc.want)
+		if got := cowgen.Singular(tc.in); got != tc.want {
+			t.Fatalf("Singular(%q)=%q want %q", tc.in, got, tc.want)
 		}
 	}
 }
 
-func TestMethodNames_FieldSlice(t *testing.T) {
-	m := sliceMethodNames("Items")
+func TestSliceMethodNames_FieldSlice(t *testing.T) {
+	m := cowgen.SliceMethodNames("Items")
 	if m.Append != "AppendItems" || m.SetAt != "SetItemsAt" ||
 		m.RemoveAt != "RemoveItemsAt" || m.Truncate != "TruncateItems" {
 		t.Fatalf("got %+v", m)
@@ -24,7 +28,7 @@ func TestMethodNames_FieldSlice(t *testing.T) {
 }
 
 func TestMapForWriteName(t *testing.T) {
-	if got := mapForWriteName("Buffs"); got != "GetBuffsMapForWrite" {
+	if got := cowgen.MapForWriteName("Buffs"); got != "GetBuffsMapForWrite" {
 		t.Fatalf("got %q", got)
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/huangyuCN/cow/internal/cowgen"
 )
 
 func main() {
@@ -26,7 +28,7 @@ func Run(output, importPath string) error {
 	if err != nil {
 		return err
 	}
-	graph, err := buildGraph(pkg)
+	graph, err := cowgen.BuildGraph(pkg)
 	if err != nil {
 		return err
 	}
