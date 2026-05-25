@@ -10,6 +10,8 @@
 //	go install ./cmd/undorewrite
 //	undorewrite ./yourpkg/...
 //
+// 完整说明见仓库 README.md 与 docs/guide/。
+//
 // +k8s:deepcopy-gen=package
 // +cow:undoproxy-gen=package
 // +groupName=cow.huanghaiyu.cn

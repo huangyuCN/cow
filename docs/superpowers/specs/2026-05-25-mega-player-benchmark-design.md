@@ -218,4 +218,4 @@ go test -bench='BenchmarkMega_|BenchmarkUndoLog|BenchmarkDeepCopyGen' -benchmem 
 
 - [2026-05-25-undoproxy-codegen-design.md](./2026-05-25-undoproxy-codegen-design.md)
 - [cow-undo-log-mvp-benchmark.md](../benchmarks/cow-undo-log-mvp-benchmark.md)
-- `new.md` — 性能目标背景
+- [docs/guide/overview.md](../../guide/overview.md) — 性能目标背景

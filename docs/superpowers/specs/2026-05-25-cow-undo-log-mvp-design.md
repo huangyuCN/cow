@@ -4,7 +4,7 @@
 |---|---|
 | 状态 | 已批准（brainstorming 2026-05-25） |
 | 模块 | `github.com/huangyuCN/cow` |
-| 需求来源 | `MVP_REQUIREMENTS.md` |
+| 需求来源 | 已并入 [docs/guide/overview.md](../../guide/overview.md)（2026-05-25） |
 | 前置 | 不沿用已删除的 `TxSession` / 路径 COW 实现；本次为全新 Undo Log 验证 |
 
 ## 1. 目标
@@ -75,7 +75,7 @@ sequenceDiagram
 
 ## 6. 数据模型
 
-与 `MVP_REQUIREMENTS.md` §3.2 / §4 模板一致：
+与项目聚合根模型（见根包 `types.go`）一致：
 
 - `Item`、`Hero`、`Player` 保留 protobuf / json / bson tag（不实际序列化）。
 - `Hero.Clone()`：单层值拷贝，供 `GetHeroForWrite` 延迟局部拷贝。

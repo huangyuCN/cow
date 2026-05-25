@@ -462,7 +462,7 @@ func cloneBuffsMapShallow(m map[string]int64) map[string]int64 {
 // +cow:undoproxy-gen=true
 type Player struct {
 	// 保留 Uid/Assets/Items/Hero
-	Heros map[int32]*Hero `bson:"heros"` // 嵌套 map，对齐 new.md
+	Heros map[int32]*Hero `bson:"heros"` // 嵌套 map 夹具
 }
 
 type Hero struct {

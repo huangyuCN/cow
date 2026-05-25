@@ -627,7 +627,7 @@ go test -bench='BenchmarkUndoLog|BenchmarkDeepCopyGen' -benchmem ./...
 - [ ] `zz_generated.deepcopy.go` 已跟踪
 - [ ] 单文件 ≤500 行、单函数 ≤50 行
 
-- [ ] **Step 2: 可选更新 `MVP_REQUIREMENTS.md` 脚注**
+- [x] **Step 2: 需求已并入 `docs/guide/overview.md` 与根 README（2026-05-25）**
 
 添加一行指向本 spec/plan（非必须，用户要求时再改）。
 

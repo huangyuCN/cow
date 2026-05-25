@@ -141,6 +141,6 @@ cowbarewrite: 禁止对 *Player 裸写字段 Level，请使用 PutLevel(ctx, …
 
 ## 11. 后续可选（非本 spec）
 
-- AST codemod 批量替换历史裸写（`save_historey.md`）。
+- AST codemod 批量替换历史裸写（见 [docs/guide/migration-undorewrite.md](../../guide/migration-undorewrite.md)）。
 - Unmarshal 专用 `BuildPlayerFromDTO`。
 - golangci-lint 官方插件仓库分发。

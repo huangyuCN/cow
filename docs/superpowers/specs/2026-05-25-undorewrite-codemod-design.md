@@ -4,7 +4,7 @@
 |---|---|
 | 状态 | 已实现（2026-05-25） |
 | 模块 | `github.com/huangyuCN/cow` |
-| 需求来源 | `save_historey.md`；与 `undocheck`（`cowbarewrite`）互补 |
+| 需求来源 | 已并入 [docs/guide/migration-undorewrite.md](../../guide/migration-undorewrite.md)；与 `undocheck`（`cowbarewrite`）互补 |
 | 前置 | `undoproxy-gen`、`zz_generated.undo_proxy.go`、`internal/cowmon`、`cmd/undocheck` |
 
 ## 1. 目标

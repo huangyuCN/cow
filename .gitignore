@@ -1,1 +1,7 @@
 .idea
+.DS_Store
+.worktrees/
+
+# benchmark 临时对比输出（归档用 Markdown，见 docs/superpowers/benchmarks/README.md）
+bench_*.txt
+*.bench.txt
