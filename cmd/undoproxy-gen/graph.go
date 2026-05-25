@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/huangyuCN/cow/internal/cowmon"
 )
 
 // FieldKind 字段分类，驱动代码生成。
@@ -59,7 +61,7 @@ type Graph struct {
 }
 
 func buildGraph(pkg *PackageInfo) (*Graph, error) {
-	reachable, err := collectReachable(pkg)
+	reachable, err := cowmon.CollectReachable(pkg)
 	if err != nil {
 		return nil, err
 	}
@@ -87,83 +89,6 @@ func buildGraph(pkg *PackageInfo) (*Graph, error) {
 		g.Structs = append(g.Structs, sp)
 	}
 	return g, nil
-}
-
-func collectReachable(pkg *PackageInfo) ([]*types.Named, error) {
-	seen := make(map[string]*types.Named)
-	var queue []*types.Named
-	for _, r := range pkg.Roots {
-		queue = append(queue, r)
-	}
-	for len(queue) > 0 {
-		n := queue[0]
-		queue = queue[1:]
-		name := n.Obj().Name()
-		if _, ok := seen[name]; ok {
-			continue
-		}
-		seen[name] = n
-		st, ok := n.Underlying().(*types.Struct)
-		if !ok {
-			continue
-		}
-		for i := 0; i < st.NumFields(); i++ {
-			refs, err := structRefsInType(st.Field(i).Type(), pkg.Pkg)
-			if err != nil {
-				return nil, err
-			}
-			for _, ref := range refs {
-				if ref.Obj().Pkg().Path() != pkg.Pkg.Path() {
-					return nil, fmt.Errorf("field %s.%s references external type %s", name, st.Field(i).Name(), ref.Obj().Name())
-				}
-				queue = append(queue, ref)
-			}
-		}
-	}
-	out := make([]*types.Named, 0, len(seen))
-	for _, n := range seen {
-		out = append(out, n)
-	}
-	// 稳定顺序
-	for i := 0; i < len(out); i++ {
-		for j := i + 1; j < len(out); j++ {
-			if out[i].Obj().Name() > out[j].Obj().Name() {
-				out[i], out[j] = out[j], out[i]
-			}
-		}
-	}
-	return out, nil
-}
-
-func structRefsInType(t types.Type, pkg *types.Package) ([]*types.Named, error) {
-	var refs []*types.Named
-	var walk func(types.Type) error
-	walk = func(typ types.Type) error {
-		switch u := typ.(type) {
-		case *types.Pointer:
-			return walk(u.Elem())
-		case *types.Slice:
-			return walk(u.Elem())
-		case *types.Map:
-			if err := walk(u.Key()); err != nil {
-				return err
-			}
-			return walk(u.Elem())
-		case *types.Named:
-			if _, ok := u.Underlying().(*types.Struct); ok && u.Obj().Pkg() == pkg {
-				refs = append(refs, u)
-			}
-			return nil
-		case *types.Basic:
-			return nil
-		default:
-			return fmt.Errorf("unsupported type %s", typ.String())
-		}
-	}
-	if err := walk(t); err != nil {
-		return nil, err
-	}
-	return refs, nil
 }
 
 func typeStr(pkg *types.Package, t types.Type) string {
