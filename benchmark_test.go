@@ -2,12 +2,6 @@ package cow
 
 import "testing"
 
-func sparseWriteDirect(p *Player) {
-	p.Assets["gold"] = 500
-	p.Items = append(p.Items, &Item{Id: 9999, Name: "Shield"})
-	p.MainHero.Level = 2
-}
-
 func sparseWriteUndo(p *Player, ctx *TxContext) {
 	applySparseWrites(p, ctx)
 }

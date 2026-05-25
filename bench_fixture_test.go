@@ -14,7 +14,7 @@ func clonePlayerSnapshot(p *Player) *Player {
 // applySparseWrites 模拟一次请求的三处稀疏写（lite）。
 func applySparseWrites(p *Player, ctx *TxContext) {
 	p.PutAssets(ctx, "gold", 500)
-	p.AppendItems(ctx, &Item{Id: 9999, Name: "Shield"})
+	p.AppendItems(ctx, newTestItem(9999, "Shield"))
 	h := p.GetMainHeroForWrite(ctx)
 	if h != nil {
 		h.PutLevel(ctx, 2)

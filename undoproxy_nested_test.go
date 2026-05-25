@@ -6,7 +6,7 @@ import (
 )
 
 func TestRollback_SliceRemoveRestore(t *testing.T) {
-	p := &Player{Items: []*Item{{Id: 1}, {Id: 2}}}
+	p := newPlayerWithItems(newTestItemsByID(1, 2))
 	want := clonePlayerSnapshot(p)
 
 	err := runScopedWithRollback(p, func(ctx *TxContext) error {
@@ -20,7 +20,7 @@ func TestRollback_SliceRemoveRestore(t *testing.T) {
 }
 
 func TestRollback_SliceTruncateRestore(t *testing.T) {
-	p := &Player{Items: []*Item{{Id: 1}, {Id: 2}, {Id: 3}}}
+	p := newPlayerWithItems(newTestItemsByID(1, 2, 3))
 	want := clonePlayerSnapshot(p)
 
 	err := runScopedWithRollback(p, func(ctx *TxContext) error {

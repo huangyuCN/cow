@@ -2,7 +2,7 @@
 
 | 项 | 值 |
 |---|---|
-| 状态 | 已批准（brainstorming 2026-05-25） |
+| 状态 | 已实现（2026-05-25） |
 | 模块 | `github.com/huangyuCN/cow` |
 | 需求来源 | 业务可能绕过 `undoproxy-gen` 代理直接改字段；初始化路径亦需界定 |
 | 前置 | `undoproxy-gen`、`zz_generated.undo_proxy.go`、`TxContext` 已落地 |
