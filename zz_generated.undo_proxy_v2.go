@@ -63,6 +63,9 @@ func (ctx *TxContextV2) push(op undoOpV2) {
 
 // Reset 清空日志并复用底层切片。
 func (ctx *TxContextV2) Reset() {
+	for i := range ctx.ops {
+		ctx.ops[i] = undoOpV2{}
+	}
 	ctx.ops = ctx.ops[:0]
 }
 

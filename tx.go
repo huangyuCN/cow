@@ -23,6 +23,9 @@ func (ctx *TxContext) Rollback() {
 
 // Reset 清空日志并复用底层切片。
 func (ctx *TxContext) Reset() {
+	for i := range ctx.undoLogs {
+		ctx.undoLogs[i] = nil
+	}
 	ctx.undoLogs = ctx.undoLogs[:0]
 }
 
