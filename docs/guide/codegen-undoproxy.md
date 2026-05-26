@@ -51,7 +51,8 @@ go generate ./...
 
 ## 边界
 
-- 不生成 `TxContext`（已在 `tx.go`）。
+- 与 `TxContext`、`undoOp`、`Rollback` 一并写入 `zz_generated.undo_proxy.go`（按类型图裁剪字段）。
+- 支持同包内**多个** `// +cow:undoproxy-gen=true` 根类型。
 - 跨包嵌套字段、反射动态类型不在生成范围。
 
 ## 相关链接

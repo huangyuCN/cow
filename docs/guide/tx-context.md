@@ -2,7 +2,7 @@
 
 ## 概述
 
-`TxContext` 管理单次请求/消息处理作用域内的 Undo 日志。实现见 `tx.go`：**单协程、无 Mutex**。
+`TxContext` 管理单次请求/消息处理作用域内的 Undo 日志。实现见 `zz_generated.undo_proxy.go`（`undoOp` 结构化日志 + `Rollback` 按 `undoKind` 分发）：**单协程、无 Mutex**。
 
 ## 前置条件
 
@@ -13,10 +13,11 @@
 
 | 方法 | 作用 |
 |------|------|
-| `AddUndo(fn)` | 注册逆操作（代理内部调用） |
-| `Rollback()` | 倒序执行全部逆操作 |
+| `Rollback()` | 倒序执行全部逆操作（由生成代理经 `push(undoOp)` 注册） |
 | `Reset()` | 清空日志，复用底层切片容量 |
 | `txPool`（包内） | `sync.Pool` 复用 `TxContext` |
+
+生成代理在写路径上调用包内 `push(undoOp{...})`；**无** `AddUndo` 公共 API。
 
 ## Commit 模式（成功提交）
 
@@ -68,7 +69,7 @@ func runScopedWithRollback(p *Player, fn func(ctx *TxContext) error) error {
 ## 边界 / FAQ
 
 - **Q：成功路径为何还要 `Reset()`？**  
-  A：避免 Undo 闭包持有引用导致泄漏；并复用 `undoLogs` 切片容量。
+  A：避免 `undoOp` 持有指针/slice/map 引用导致泄漏；并复用 `ops` 切片容量。
 - **Q：能否多个聚合根共用一个 `TxContext`？**  
   A：MVP 按单聚合根设计；多根需自行划分作用域或扩展。
 

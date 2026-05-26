@@ -2,6 +2,274 @@
 
 package cow
 
+import "sync"
+
+type undoKind uint8
+
+const (
+	undoKindHeroHeroIdScalarSet undoKind = iota + 1
+	undoKindHeroLevelScalarSet
+	undoKindHeroSkillsMapPtrReplace
+	undoKindHeroSkillsMapEnsureNil
+	undoKindHeroSkillsMapKeySet
+	undoKindItemIdScalarSet
+	undoKindItemNameScalarSet
+	undoKindItemExtraScalarSet
+	undoKindMailIdScalarSet
+	undoKindMailSubjectScalarSet
+	undoKindMailBodyScalarSet
+	undoKindPlayerUidScalarSet
+	undoKindPlayerLevelScalarSet
+	undoKindPlayerAssetsMapKeySet
+	undoKindPlayerAssetsMapEnsureNil
+	undoKindPlayerItemsSliceTruncate
+	undoKindPlayerItemsSliceSetAt
+	undoKindPlayerItemsSliceRestore
+	undoKindPlayerMainHeroPtrReplace
+	undoKindPlayerHerosMapPtrReplace
+	undoKindPlayerHerosMapEnsureNil
+	undoKindPlayerHerosMapKeySet
+	undoKindPlayerBagsMapSliceAppend
+	undoKindPlayerBagsMapEnsureNil
+	undoKindPlayerBagsMapSliceElemSet
+	undoKindPlayerBagsMapSliceRestore
+	undoKindPlayerBagsMapSlicePtrReplace
+	undoKindPlayerBagsMapSlicePut
+	undoKindPlayerStatsMapMapOuterDelete
+	undoKindPlayerStatsMapMapInnerKeySet
+	undoKindPlayerStatsMapEnsureNil
+	undoKindPlayerStatsMapMapOuterRestore
+	undoKindPlayerStatsMapMapInnerReplace
+	undoKindPlayerCooldownsMapSliceAppend
+	undoKindPlayerCooldownsMapEnsureNil
+	undoKindPlayerCooldownsMapSliceElemSet
+	undoKindPlayerCooldownsMapSliceRestore
+	undoKindPlayerCooldownsMapSlicePut
+	undoKindPlayerMailsMapPtrReplace
+	undoKindPlayerMailsMapEnsureNil
+	undoKindPlayerMailsMapKeySet
+	undoKindPlayerQuestsMapPtrReplace
+	undoKindPlayerQuestsMapEnsureNil
+	undoKindPlayerQuestsMapKeySet
+	undoKindQuestIdScalarSet
+	undoKindQuestStateScalarSet
+	undoKindQuestObjectivesMapKeySet
+	undoKindQuestObjectivesMapEnsureNil
+	undoKindSkillSkillIdScalarSet
+	undoKindSkillLevelScalarSet
+)
+
+type undoOp struct {
+	kind      undoKind
+	hero      *Hero
+	item      *Item
+	mail      *Mail
+	player    *Player
+	quest     *Quest
+	skill     *Skill
+	keyI32    int32
+	keyI64    int64
+	keyU64    uint64
+	keyString string
+
+	oldI32    int32
+	oldI64    int64
+	oldU64    uint64
+	oldInt    int
+	oldString string
+
+	snapItem    []*Item
+	snapint32   []int32
+	innerMapOld map[string]int64
+
+	had  bool
+	had2 bool
+}
+
+// TxContext 单次请求作用域的 Undo 日志（单协程，无锁）。
+//
+// +k8s:deepcopy-gen=false
+type TxContext struct {
+	ops []undoOp
+}
+
+func (ctx *TxContext) push(op undoOp) {
+	ctx.ops = append(ctx.ops, op)
+}
+
+// Reset 清空日志并复用底层切片。
+func (ctx *TxContext) Reset() {
+	for i := range ctx.ops {
+		ctx.ops[i] = undoOp{}
+	}
+	ctx.ops = ctx.ops[:0]
+}
+
+var txPool = sync.Pool{
+	New: func() any {
+		return &TxContext{ops: make([]undoOp, 0, 16)}
+	},
+}
+
+// Rollback 倒序执行所有逆操作。
+func (ctx *TxContext) Rollback() {
+	for i := len(ctx.ops) - 1; i >= 0; i-- {
+		op := ctx.ops[i]
+		switch op.kind {
+		case undoKindHeroHeroIdScalarSet:
+			op.hero.HeroId = op.oldI32
+		case undoKindHeroLevelScalarSet:
+			op.hero.Level = op.oldI32
+		case undoKindHeroSkillsMapPtrReplace:
+			op.hero.Skills[op.keyI32] = op.skill
+		case undoKindHeroSkillsMapEnsureNil:
+			op.hero.Skills = nil
+		case undoKindHeroSkillsMapKeySet:
+			if op.had {
+				op.hero.Skills[op.keyI32] = op.skill
+			} else {
+				delete(op.hero.Skills, op.keyI32)
+			}
+		case undoKindItemIdScalarSet:
+			op.item.Id = op.oldI64
+		case undoKindItemNameScalarSet:
+			op.item.Name = op.oldString
+		case undoKindItemExtraScalarSet:
+			op.item.Extra = op.oldString
+		case undoKindMailIdScalarSet:
+			op.mail.Id = op.oldU64
+		case undoKindMailSubjectScalarSet:
+			op.mail.Subject = op.oldString
+		case undoKindMailBodyScalarSet:
+			op.mail.Body = op.oldString
+		case undoKindPlayerUidScalarSet:
+			op.player.Uid = op.oldI64
+		case undoKindPlayerLevelScalarSet:
+			op.player.Level = op.oldI32
+		case undoKindPlayerAssetsMapKeySet:
+			if op.had {
+				op.player.Assets[op.keyString] = op.oldI64
+			} else {
+				delete(op.player.Assets, op.keyString)
+			}
+		case undoKindPlayerAssetsMapEnsureNil:
+			op.player.Assets = nil
+		case undoKindPlayerItemsSliceTruncate:
+			op.player.Items = op.player.Items[:op.oldInt]
+		case undoKindPlayerItemsSliceSetAt:
+			op.player.Items[op.oldInt] = op.item
+		case undoKindPlayerItemsSliceRestore:
+			op.player.Items = append([]*Item(nil), op.snapItem...)
+		case undoKindPlayerMainHeroPtrReplace:
+			op.player.MainHero = op.hero
+		case undoKindPlayerHerosMapPtrReplace:
+			op.player.Heros[op.keyI32] = op.hero
+		case undoKindPlayerHerosMapEnsureNil:
+			op.player.Heros = nil
+		case undoKindPlayerHerosMapKeySet:
+			if op.had {
+				op.player.Heros[op.keyI32] = op.hero
+			} else {
+				delete(op.player.Heros, op.keyI32)
+			}
+		case undoKindPlayerBagsMapSliceAppend:
+			if op.had {
+				op.player.Bags[op.keyI32] = op.snapItem[:op.oldInt]
+			} else {
+				delete(op.player.Bags, op.keyI32)
+			}
+		case undoKindPlayerBagsMapEnsureNil:
+			op.player.Bags = nil
+		case undoKindPlayerBagsMapSliceElemSet:
+			op.player.Bags[op.keyI32][op.oldInt] = op.item
+		case undoKindPlayerBagsMapSliceRestore:
+			op.player.Bags[op.keyI32] = append([]*Item(nil), op.snapItem...)
+		case undoKindPlayerBagsMapSlicePtrReplace:
+			op.player.Bags[op.keyI32][i] = op.item
+		case undoKindPlayerBagsMapSlicePut:
+			if op.had {
+				op.player.Bags[op.keyI32] = op.snapItem
+			} else {
+				delete(op.player.Bags, op.keyI32)
+			}
+		case undoKindPlayerStatsMapMapOuterDelete:
+			delete(op.player.Stats, op.keyI32)
+		case undoKindPlayerStatsMapMapInnerKeySet:
+			inner := op.player.Stats[op.keyI32]
+			if op.had {
+				inner[op.keyString] = op.oldI64
+			} else {
+				delete(inner, op.keyString)
+			}
+		case undoKindPlayerStatsMapEnsureNil:
+			op.player.Stats = nil
+		case undoKindPlayerStatsMapMapOuterRestore:
+			if op.had {
+				op.player.Stats[op.keyI32] = op.innerMapOld
+			} else {
+				delete(op.player.Stats, op.keyI32)
+			}
+		case undoKindPlayerStatsMapMapInnerReplace:
+			op.player.Stats[op.keyI32] = op.innerMapOld
+		case undoKindPlayerCooldownsMapSliceAppend:
+			if op.had {
+				op.player.Cooldowns[op.keyI32] = op.snapint32[:op.oldInt]
+			} else {
+				delete(op.player.Cooldowns, op.keyI32)
+			}
+		case undoKindPlayerCooldownsMapEnsureNil:
+			op.player.Cooldowns = nil
+		case undoKindPlayerCooldownsMapSliceElemSet:
+			op.player.Cooldowns[op.keyI32][op.oldInt] = op.oldI32
+		case undoKindPlayerCooldownsMapSliceRestore:
+			op.player.Cooldowns[op.keyI32] = append([]int32(nil), op.snapint32...)
+		case undoKindPlayerCooldownsMapSlicePut:
+			if op.had {
+				op.player.Cooldowns[op.keyI32] = op.snapint32
+			} else {
+				delete(op.player.Cooldowns, op.keyI32)
+			}
+		case undoKindPlayerMailsMapPtrReplace:
+			op.player.Mails[op.keyU64] = op.mail
+		case undoKindPlayerMailsMapEnsureNil:
+			op.player.Mails = nil
+		case undoKindPlayerMailsMapKeySet:
+			if op.had {
+				op.player.Mails[op.keyU64] = op.mail
+			} else {
+				delete(op.player.Mails, op.keyU64)
+			}
+		case undoKindPlayerQuestsMapPtrReplace:
+			op.player.Quests[op.keyI32] = op.quest
+		case undoKindPlayerQuestsMapEnsureNil:
+			op.player.Quests = nil
+		case undoKindPlayerQuestsMapKeySet:
+			if op.had {
+				op.player.Quests[op.keyI32] = op.quest
+			} else {
+				delete(op.player.Quests, op.keyI32)
+			}
+		case undoKindQuestIdScalarSet:
+			op.quest.Id = op.oldI32
+		case undoKindQuestStateScalarSet:
+			op.quest.State = op.oldI32
+		case undoKindQuestObjectivesMapKeySet:
+			if op.had {
+				op.quest.Objectives[op.keyI32] = op.oldI32
+			} else {
+				delete(op.quest.Objectives, op.keyI32)
+			}
+		case undoKindQuestObjectivesMapEnsureNil:
+			op.quest.Objectives = nil
+		case undoKindSkillSkillIdScalarSet:
+			op.skill.SkillId = op.oldI32
+		case undoKindSkillLevelScalarSet:
+			op.skill.Level = op.oldI32
+		}
+	}
+}
+
+// CloneForWrite 返回 Hero 的可写浅拷贝。
 func (h *Hero) CloneForWrite() *Hero {
 	if h == nil {
 		return nil
@@ -15,19 +283,19 @@ func (h *Hero) CloneForWrite() *Hero {
 
 func (h *Hero) PutHeroId(ctx *TxContext, val int32) {
 	old := h.HeroId
-	ctx.AddUndo(func() { h.HeroId = old })
+	ctx.push(undoOp{kind: undoKindHeroHeroIdScalarSet, hero: h, oldI32: old})
 	h.HeroId = val
 }
 
 func (h *Hero) PutLevel(ctx *TxContext, val int32) {
 	old := h.Level
-	ctx.AddUndo(func() { h.Level = old })
+	ctx.push(undoOp{kind: undoKindHeroLevelScalarSet, hero: h, oldI32: old})
 	h.Level = val
 }
 
 func (h *Hero) GetSkillForWrite(ctx *TxContext, k1 int32) *Skill {
 	if h.Skills == nil {
-		ctx.AddUndo(func() { h.Skills = nil })
+		ctx.push(undoOp{kind: undoKindHeroSkillsMapEnsureNil, hero: h})
 		h.Skills = make(map[int32]*Skill)
 	}
 	old, ok := h.Skills[k1]
@@ -35,14 +303,14 @@ func (h *Hero) GetSkillForWrite(ctx *TxContext, k1 int32) *Skill {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.AddUndo(func() { h.Skills[k1] = old })
+	ctx.push(undoOp{kind: undoKindHeroSkillsMapPtrReplace, hero: h, keyI32: k1, skill: old})
 	h.Skills[k1] = dirty
 	return dirty
 }
 
 func (h *Hero) PutSkills(ctx *TxContext, k1 int32, val *Skill) {
 	if h.Skills == nil {
-		ctx.AddUndo(func() { h.Skills = nil })
+		ctx.push(undoOp{kind: undoKindHeroSkillsMapEnsureNil, hero: h})
 		h.Skills = make(map[int32]*Skill)
 	}
 	old, existed := h.Skills[k1]
@@ -50,15 +318,10 @@ func (h *Hero) PutSkills(ctx *TxContext, k1 int32, val *Skill) {
 		val = val.CloneForWrite()
 	}
 	h.Skills[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			h.Skills[k1] = old
-		} else {
-			delete(h.Skills, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindHeroSkillsMapKeySet, hero: h, keyI32: k1, skill: old, had: existed})
 }
 
+// CloneForWrite 返回 Item 的可写浅拷贝。
 func (i *Item) CloneForWrite() *Item {
 	if i == nil {
 		return nil
@@ -72,22 +335,23 @@ func (i *Item) CloneForWrite() *Item {
 
 func (i *Item) PutId(ctx *TxContext, val int64) {
 	old := i.Id
-	ctx.AddUndo(func() { i.Id = old })
+	ctx.push(undoOp{kind: undoKindItemIdScalarSet, item: i, oldI64: old})
 	i.Id = val
 }
 
 func (i *Item) PutName(ctx *TxContext, val string) {
 	old := i.Name
-	ctx.AddUndo(func() { i.Name = old })
+	ctx.push(undoOp{kind: undoKindItemNameScalarSet, item: i, oldString: old})
 	i.Name = val
 }
 
 func (i *Item) PutExtra(ctx *TxContext, val string) {
 	old := i.Extra
-	ctx.AddUndo(func() { i.Extra = old })
+	ctx.push(undoOp{kind: undoKindItemExtraScalarSet, item: i, oldString: old})
 	i.Extra = val
 }
 
+// CloneForWrite 返回 Mail 的可写浅拷贝。
 func (m *Mail) CloneForWrite() *Mail {
 	if m == nil {
 		return nil
@@ -101,22 +365,23 @@ func (m *Mail) CloneForWrite() *Mail {
 
 func (m *Mail) PutId(ctx *TxContext, val uint64) {
 	old := m.Id
-	ctx.AddUndo(func() { m.Id = old })
+	ctx.push(undoOp{kind: undoKindMailIdScalarSet, mail: m, oldU64: old})
 	m.Id = val
 }
 
 func (m *Mail) PutSubject(ctx *TxContext, val string) {
 	old := m.Subject
-	ctx.AddUndo(func() { m.Subject = old })
+	ctx.push(undoOp{kind: undoKindMailSubjectScalarSet, mail: m, oldString: old})
 	m.Subject = val
 }
 
 func (m *Mail) PutBody(ctx *TxContext, val string) {
 	old := m.Body
-	ctx.AddUndo(func() { m.Body = old })
+	ctx.push(undoOp{kind: undoKindMailBodyScalarSet, mail: m, oldString: old})
 	m.Body = val
 }
 
+// CloneForWrite 返回 Player 的可写浅拷贝。
 func (p *Player) CloneForWrite() *Player {
 	if p == nil {
 		return nil
@@ -138,57 +403,52 @@ func (p *Player) CloneForWrite() *Player {
 
 func (p *Player) PutUid(ctx *TxContext, val int64) {
 	old := p.Uid
-	ctx.AddUndo(func() { p.Uid = old })
+	ctx.push(undoOp{kind: undoKindPlayerUidScalarSet, player: p, oldI64: old})
 	p.Uid = val
 }
 
 func (p *Player) PutLevel(ctx *TxContext, val int32) {
 	old := p.Level
-	ctx.AddUndo(func() { p.Level = old })
+	ctx.push(undoOp{kind: undoKindPlayerLevelScalarSet, player: p, oldI32: old})
 	p.Level = val
 }
 
 func (p *Player) PutAssets(ctx *TxContext, k1 string, val int64) {
 	if p.Assets == nil {
-		ctx.AddUndo(func() { p.Assets = nil })
+		ctx.push(undoOp{kind: undoKindPlayerAssetsMapEnsureNil, player: p})
 		p.Assets = make(map[string]int64)
 	}
 	old, existed := p.Assets[k1]
 	p.Assets[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			p.Assets[k1] = old
-		} else {
-			delete(p.Assets, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerAssetsMapKeySet, player: p, keyString: k1, oldI64: old, had: existed})
 }
 
 func (p *Player) AppendItems(ctx *TxContext, elem *Item) {
 	oldLen := len(p.Items)
 	p.Items = append(p.Items, elem)
-	ctx.AddUndo(func() { p.Items = p.Items[:oldLen] })
+	ctx.push(undoOp{kind: undoKindPlayerItemsSliceTruncate, player: p, oldInt: oldLen})
 }
 
 func (p *Player) SetItemsAt(ctx *TxContext, i int, elem *Item) {
 	old := p.Items[i]
-	ctx.AddUndo(func() { p.Items[i] = old })
+	ctx.push(undoOp{kind: undoKindPlayerItemsSliceSetAt, player: p, item: old, oldInt: i})
 	p.Items[i] = elem
 }
 
 func (p *Player) RemoveItemsAt(ctx *TxContext, i int) {
-	old := p.Items[i]
+	oldLen := len(p.Items)
+	tail := append([]*Item(nil), p.Items...)
 	p.Items = append(p.Items[:i], p.Items[i+1:]...)
-	ctx.AddUndo(func() { p.Items = append(p.Items[:i], append([]*Item{old}, p.Items[i:]...)...) })
+	ctx.push(undoOp{kind: undoKindPlayerItemsSliceRestore, player: p, snapItem: tail, oldInt: oldLen})
 }
 
 func (p *Player) TruncateItems(ctx *TxContext, n int) {
 	if n >= len(p.Items) {
 		return
 	}
-	tail := append([]*Item(nil), p.Items[n:]...)
+	oldLen := len(p.Items)
 	p.Items = p.Items[:n]
-	ctx.AddUndo(func() { p.Items = append(p.Items, tail...) })
+	ctx.push(undoOp{kind: undoKindPlayerItemsSliceTruncate, player: p, oldInt: oldLen})
 }
 
 func (p *Player) GetMainHeroForWrite(ctx *TxContext) *Hero {
@@ -197,14 +457,14 @@ func (p *Player) GetMainHeroForWrite(ctx *TxContext) *Hero {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.AddUndo(func() { p.MainHero = old })
+	ctx.push(undoOp{kind: undoKindPlayerMainHeroPtrReplace, player: p, hero: old})
 	p.MainHero = dirty
 	return dirty
 }
 
 func (p *Player) GetHeroForWrite(ctx *TxContext, k1 int32) *Hero {
 	if p.Heros == nil {
-		ctx.AddUndo(func() { p.Heros = nil })
+		ctx.push(undoOp{kind: undoKindPlayerHerosMapEnsureNil, player: p})
 		p.Heros = make(map[int32]*Hero)
 	}
 	old, ok := p.Heros[k1]
@@ -212,14 +472,14 @@ func (p *Player) GetHeroForWrite(ctx *TxContext, k1 int32) *Hero {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.AddUndo(func() { p.Heros[k1] = old })
+	ctx.push(undoOp{kind: undoKindPlayerHerosMapPtrReplace, player: p, keyI32: k1, hero: old})
 	p.Heros[k1] = dirty
 	return dirty
 }
 
 func (p *Player) PutHeros(ctx *TxContext, k1 int32, val *Hero) {
 	if p.Heros == nil {
-		ctx.AddUndo(func() { p.Heros = nil })
+		ctx.push(undoOp{kind: undoKindPlayerHerosMapEnsureNil, player: p})
 		p.Heros = make(map[int32]*Hero)
 	}
 	old, existed := p.Heros[k1]
@@ -227,70 +487,58 @@ func (p *Player) PutHeros(ctx *TxContext, k1 int32, val *Hero) {
 		val = val.CloneForWrite()
 	}
 	p.Heros[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			p.Heros[k1] = old
-		} else {
-			delete(p.Heros, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerHerosMapKeySet, player: p, keyI32: k1, hero: old, had: existed})
 }
 
 func (p *Player) AppendBagsAt(ctx *TxContext, k1 int32, elem *Item) {
 	if p.Bags == nil {
-		ctx.AddUndo(func() { p.Bags = nil })
+		ctx.push(undoOp{kind: undoKindPlayerBagsMapEnsureNil, player: p})
 		p.Bags = make(map[int32][]*Item)
 	}
 	prev, existed := p.Bags[k1]
 	oldLen := len(prev)
 	p.Bags[k1] = append(prev, elem)
-	ctx.AddUndo(func() {
-		if !existed {
-			delete(p.Bags, k1)
-		} else {
-			p.Bags[k1] = prev[:oldLen]
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceAppend, player: p, keyI32: k1, snapItem: prev, oldInt: oldLen, had: existed})
 }
 
 func (p *Player) SetBagsAt(ctx *TxContext, k1 int32, i int, elem *Item) {
 	if p.Bags == nil {
-		ctx.AddUndo(func() { p.Bags = nil })
+		ctx.push(undoOp{kind: undoKindPlayerBagsMapEnsureNil, player: p})
 		p.Bags = make(map[int32][]*Item)
 	}
-	old := p.Bags[k1][i]
-	ctx.AddUndo(func() { p.Bags[k1][i] = old })
+	oldElem := p.Bags[k1][i]
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceElemSet, player: p, keyI32: k1, item: oldElem, oldInt: i})
 	p.Bags[k1][i] = elem
 }
 
 func (p *Player) RemoveBagsAt(ctx *TxContext, k1 int32, i int) {
 	if p.Bags == nil {
-		ctx.AddUndo(func() { p.Bags = nil })
+		ctx.push(undoOp{kind: undoKindPlayerBagsMapEnsureNil, player: p})
 		p.Bags = make(map[int32][]*Item)
 	}
-	s := p.Bags[k1]
-	old := s[i]
-	p.Bags[k1] = append(s[:i], s[i+1:]...)
-	ctx.AddUndo(func() { p.Bags[k1] = append(p.Bags[k1][:i], append([]*Item{old}, p.Bags[k1][i:]...)...) })
+	old, existed := p.Bags[k1]
+	oldCopy := append([]*Item(nil), old...)
+	p.Bags[k1] = append(old[:i], old[i+1:]...)
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceRestore, player: p, keyI32: k1, snapItem: oldCopy, had: existed})
 }
 
 func (p *Player) TruncateBags(ctx *TxContext, k1 int32, n int) {
 	if p.Bags == nil {
-		ctx.AddUndo(func() { p.Bags = nil })
+		ctx.push(undoOp{kind: undoKindPlayerBagsMapEnsureNil, player: p})
 		p.Bags = make(map[int32][]*Item)
 	}
-	s := p.Bags[k1]
-	if n >= len(s) {
+	old, existed := p.Bags[k1]
+	if n >= len(old) {
 		return
 	}
-	tail := append([]*Item(nil), s[n:]...)
-	p.Bags[k1] = s[:n]
-	ctx.AddUndo(func() { p.Bags[k1] = append(p.Bags[k1], tail...) })
+	oldCopy := append([]*Item(nil), old...)
+	p.Bags[k1] = old[:n]
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceRestore, player: p, keyI32: k1, snapItem: oldCopy, had: existed})
 }
 
 func (p *Player) GetItemAtForWrite(ctx *TxContext, k1 int32, i int) *Item {
 	if p.Bags == nil {
-		ctx.AddUndo(func() { p.Bags = nil })
+		ctx.push(undoOp{kind: undoKindPlayerBagsMapEnsureNil, player: p})
 		p.Bags = make(map[int32][]*Item)
 	}
 	old := p.Bags[k1][i]
@@ -298,69 +546,52 @@ func (p *Player) GetItemAtForWrite(ctx *TxContext, k1 int32, i int) *Item {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.AddUndo(func() { p.Bags[k1][i] = old })
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSlicePtrReplace, player: p, keyI32: k1, item: old, oldInt: i})
 	p.Bags[k1][i] = dirty
 	return dirty
 }
 
 func (p *Player) PutBags(ctx *TxContext, k1 int32, val []*Item) {
 	if p.Bags == nil {
-		ctx.AddUndo(func() { p.Bags = nil })
+		ctx.push(undoOp{kind: undoKindPlayerBagsMapEnsureNil, player: p})
 		p.Bags = make(map[int32][]*Item)
 	}
 	old, existed := p.Bags[k1]
+	oldCopy := append([]*Item(nil), old...)
 	p.Bags[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			p.Bags[k1] = old
-		} else {
-			delete(p.Bags, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSlicePut, player: p, keyI32: k1, snapItem: oldCopy, had: existed})
 }
 
 func (p *Player) PutStats(ctx *TxContext, k1 int32, k2 string, val int64) {
 	if p.Stats == nil {
-		ctx.AddUndo(func() { p.Stats = nil })
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapEnsureNil, player: p})
 		p.Stats = make(map[int32]map[string]int64)
 	}
 	inner, ok := p.Stats[k1]
 	if !ok || inner == nil {
-		ctx.AddUndo(func() { delete(p.Stats, k1) })
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterDelete, player: p, had2: true})
 		inner = make(map[string]int64)
 		p.Stats[k1] = inner
 	}
 	old, existed := inner[k2]
 	inner[k2] = val
-	ctx.AddUndo(func() {
-		if existed {
-			inner[k2] = old
-		} else {
-			delete(inner, k2)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerKeySet, player: p, keyI32: k1, keyString: k2, oldI64: old, had: existed})
 }
 
 func (p *Player) GetStatsMapForWrite(ctx *TxContext, k1 int32) map[string]int64 {
 	if p.Stats == nil {
-		ctx.AddUndo(func() { p.Stats = nil })
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapEnsureNil, player: p})
 		p.Stats = make(map[int32]map[string]int64)
 	}
 	oldInner, existed := p.Stats[k1]
 	if !existed || oldInner == nil {
 		newInner := make(map[string]int64)
-		ctx.AddUndo(func() {
-			if !existed {
-				delete(p.Stats, k1)
-			} else {
-				p.Stats[k1] = oldInner
-			}
-		})
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterRestore, player: p, keyI32: k1, had2: !existed})
 		p.Stats[k1] = newInner
 		return newInner
 	}
 	dirty := cloneStatsMapShallow(oldInner)
-	ctx.AddUndo(func() { p.Stats[k1] = oldInner })
+	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerReplace, player: p, keyI32: k1, innerMapOld: oldInner, had: true})
 	p.Stats[k1] = dirty
 	return dirty
 }
@@ -378,75 +609,64 @@ func cloneStatsMapShallow(m map[string]int64) map[string]int64 {
 
 func (p *Player) AppendCooldownsAt(ctx *TxContext, k1 int32, elem int32) {
 	if p.Cooldowns == nil {
-		ctx.AddUndo(func() { p.Cooldowns = nil })
+		ctx.push(undoOp{kind: undoKindPlayerCooldownsMapEnsureNil, player: p})
 		p.Cooldowns = make(map[int32][]int32)
 	}
 	prev, existed := p.Cooldowns[k1]
 	oldLen := len(prev)
 	p.Cooldowns[k1] = append(prev, elem)
-	ctx.AddUndo(func() {
-		if !existed {
-			delete(p.Cooldowns, k1)
-		} else {
-			p.Cooldowns[k1] = prev[:oldLen]
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceAppend, player: p, keyI32: k1, snapint32: prev, oldInt: oldLen, had: existed})
 }
 
 func (p *Player) SetCooldownsAt(ctx *TxContext, k1 int32, i int, elem int32) {
 	if p.Cooldowns == nil {
-		ctx.AddUndo(func() { p.Cooldowns = nil })
+		ctx.push(undoOp{kind: undoKindPlayerCooldownsMapEnsureNil, player: p})
 		p.Cooldowns = make(map[int32][]int32)
 	}
-	old := p.Cooldowns[k1][i]
-	ctx.AddUndo(func() { p.Cooldowns[k1][i] = old })
+	oldElem := p.Cooldowns[k1][i]
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceElemSet, player: p, keyI32: k1, oldI32: oldElem, oldInt: i})
 	p.Cooldowns[k1][i] = elem
 }
 
 func (p *Player) RemoveCooldownsAt(ctx *TxContext, k1 int32, i int) {
 	if p.Cooldowns == nil {
-		ctx.AddUndo(func() { p.Cooldowns = nil })
+		ctx.push(undoOp{kind: undoKindPlayerCooldownsMapEnsureNil, player: p})
 		p.Cooldowns = make(map[int32][]int32)
 	}
-	s := p.Cooldowns[k1]
-	old := s[i]
-	p.Cooldowns[k1] = append(s[:i], s[i+1:]...)
-	ctx.AddUndo(func() { p.Cooldowns[k1] = append(p.Cooldowns[k1][:i], append([]int32{old}, p.Cooldowns[k1][i:]...)...) })
+	old, existed := p.Cooldowns[k1]
+	oldCopy := append([]int32(nil), old...)
+	p.Cooldowns[k1] = append(old[:i], old[i+1:]...)
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceRestore, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
 }
 
 func (p *Player) TruncateCooldowns(ctx *TxContext, k1 int32, n int) {
 	if p.Cooldowns == nil {
-		ctx.AddUndo(func() { p.Cooldowns = nil })
+		ctx.push(undoOp{kind: undoKindPlayerCooldownsMapEnsureNil, player: p})
 		p.Cooldowns = make(map[int32][]int32)
 	}
-	s := p.Cooldowns[k1]
-	if n >= len(s) {
+	old, existed := p.Cooldowns[k1]
+	if n >= len(old) {
 		return
 	}
-	tail := append([]int32(nil), s[n:]...)
-	p.Cooldowns[k1] = s[:n]
-	ctx.AddUndo(func() { p.Cooldowns[k1] = append(p.Cooldowns[k1], tail...) })
+	oldCopy := append([]int32(nil), old...)
+	p.Cooldowns[k1] = old[:n]
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceRestore, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
 }
 
 func (p *Player) PutCooldowns(ctx *TxContext, k1 int32, val []int32) {
 	if p.Cooldowns == nil {
-		ctx.AddUndo(func() { p.Cooldowns = nil })
+		ctx.push(undoOp{kind: undoKindPlayerCooldownsMapEnsureNil, player: p})
 		p.Cooldowns = make(map[int32][]int32)
 	}
 	old, existed := p.Cooldowns[k1]
+	oldCopy := append([]int32(nil), old...)
 	p.Cooldowns[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			p.Cooldowns[k1] = old
-		} else {
-			delete(p.Cooldowns, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSlicePut, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
 }
 
 func (p *Player) GetMailForWrite(ctx *TxContext, k1 uint64) *Mail {
 	if p.Mails == nil {
-		ctx.AddUndo(func() { p.Mails = nil })
+		ctx.push(undoOp{kind: undoKindPlayerMailsMapEnsureNil, player: p})
 		p.Mails = make(map[uint64]*Mail)
 	}
 	old, ok := p.Mails[k1]
@@ -454,14 +674,14 @@ func (p *Player) GetMailForWrite(ctx *TxContext, k1 uint64) *Mail {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.AddUndo(func() { p.Mails[k1] = old })
+	ctx.push(undoOp{kind: undoKindPlayerMailsMapPtrReplace, player: p, keyU64: k1, mail: old})
 	p.Mails[k1] = dirty
 	return dirty
 }
 
 func (p *Player) PutMails(ctx *TxContext, k1 uint64, val *Mail) {
 	if p.Mails == nil {
-		ctx.AddUndo(func() { p.Mails = nil })
+		ctx.push(undoOp{kind: undoKindPlayerMailsMapEnsureNil, player: p})
 		p.Mails = make(map[uint64]*Mail)
 	}
 	old, existed := p.Mails[k1]
@@ -469,18 +689,12 @@ func (p *Player) PutMails(ctx *TxContext, k1 uint64, val *Mail) {
 		val = val.CloneForWrite()
 	}
 	p.Mails[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			p.Mails[k1] = old
-		} else {
-			delete(p.Mails, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerMailsMapKeySet, player: p, keyU64: k1, mail: old, had: existed})
 }
 
 func (p *Player) GetQuestForWrite(ctx *TxContext, k1 int32) *Quest {
 	if p.Quests == nil {
-		ctx.AddUndo(func() { p.Quests = nil })
+		ctx.push(undoOp{kind: undoKindPlayerQuestsMapEnsureNil, player: p})
 		p.Quests = make(map[int32]*Quest)
 	}
 	old, ok := p.Quests[k1]
@@ -488,14 +702,14 @@ func (p *Player) GetQuestForWrite(ctx *TxContext, k1 int32) *Quest {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.AddUndo(func() { p.Quests[k1] = old })
+	ctx.push(undoOp{kind: undoKindPlayerQuestsMapPtrReplace, player: p, keyI32: k1, quest: old})
 	p.Quests[k1] = dirty
 	return dirty
 }
 
 func (p *Player) PutQuests(ctx *TxContext, k1 int32, val *Quest) {
 	if p.Quests == nil {
-		ctx.AddUndo(func() { p.Quests = nil })
+		ctx.push(undoOp{kind: undoKindPlayerQuestsMapEnsureNil, player: p})
 		p.Quests = make(map[int32]*Quest)
 	}
 	old, existed := p.Quests[k1]
@@ -503,15 +717,10 @@ func (p *Player) PutQuests(ctx *TxContext, k1 int32, val *Quest) {
 		val = val.CloneForWrite()
 	}
 	p.Quests[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			p.Quests[k1] = old
-		} else {
-			delete(p.Quests, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindPlayerQuestsMapKeySet, player: p, keyI32: k1, quest: old, had: existed})
 }
 
+// CloneForWrite 返回 Quest 的可写浅拷贝。
 func (q *Quest) CloneForWrite() *Quest {
 	if q == nil {
 		return nil
@@ -525,32 +734,27 @@ func (q *Quest) CloneForWrite() *Quest {
 
 func (q *Quest) PutId(ctx *TxContext, val int32) {
 	old := q.Id
-	ctx.AddUndo(func() { q.Id = old })
+	ctx.push(undoOp{kind: undoKindQuestIdScalarSet, quest: q, oldI32: old})
 	q.Id = val
 }
 
 func (q *Quest) PutState(ctx *TxContext, val int32) {
 	old := q.State
-	ctx.AddUndo(func() { q.State = old })
+	ctx.push(undoOp{kind: undoKindQuestStateScalarSet, quest: q, oldI32: old})
 	q.State = val
 }
 
 func (q *Quest) PutObjectives(ctx *TxContext, k1 int32, val int32) {
 	if q.Objectives == nil {
-		ctx.AddUndo(func() { q.Objectives = nil })
+		ctx.push(undoOp{kind: undoKindQuestObjectivesMapEnsureNil, quest: q})
 		q.Objectives = make(map[int32]int32)
 	}
 	old, existed := q.Objectives[k1]
 	q.Objectives[k1] = val
-	ctx.AddUndo(func() {
-		if existed {
-			q.Objectives[k1] = old
-		} else {
-			delete(q.Objectives, k1)
-		}
-	})
+	ctx.push(undoOp{kind: undoKindQuestObjectivesMapKeySet, quest: q, keyI32: k1, oldI32: old, had: existed})
 }
 
+// CloneForWrite 返回 Skill 的可写浅拷贝。
 func (s *Skill) CloneForWrite() *Skill {
 	if s == nil {
 		return nil
@@ -563,12 +767,12 @@ func (s *Skill) CloneForWrite() *Skill {
 
 func (s *Skill) PutSkillId(ctx *TxContext, val int32) {
 	old := s.SkillId
-	ctx.AddUndo(func() { s.SkillId = old })
+	ctx.push(undoOp{kind: undoKindSkillSkillIdScalarSet, skill: s, oldI32: old})
 	s.SkillId = val
 }
 
 func (s *Skill) PutLevel(ctx *TxContext, val int32) {
 	old := s.Level
-	ctx.AddUndo(func() { s.Level = old })
+	ctx.push(undoOp{kind: undoKindSkillLevelScalarSet, skill: s, oldI32: old})
 	s.Level = val
 }

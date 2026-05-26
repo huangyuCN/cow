@@ -8,7 +8,8 @@
 
 ## 能力边界
 
-- 同包类型图；不生成 `TxContext`。
+- 同包类型图；生成 `TxContext` / `undoOp` / `Rollback`（写入 `zz_generated.undo_proxy.go`）。
+- 任意/多根 `+cow:undoproxy-gen=true`；仅结构化 `ctx.push(undoOp{...})`，不生成 `AddUndo`。
 - 不支持跨包嵌套、`interface{}`/channel/func 容器元素。
 - 不替代 `undocheck` / `undorewrite`。
 
@@ -35,8 +36,12 @@ CI 一般**不**跑 generate；要求提交已生成的 `zz_generated.undo_proxy
 |------|------|
 | `main.go` | CLI、`Run` 入口 |
 | `loader.go` | `packages.Load` |
-| `emit.go` | 调用 `cowgen.BuildGraph` 并写文件 |
-| `graph_test.go` | 类型图测试 |
+| `emit.go` | 入口：`emitFromGraph` |
+| `emit_undo.go` | `undoBuilder`、运行时代码 |
+| `emit_structured.go` | 按 `FieldPlan.Kind` 生成代理 |
+| `emit_structured_graph.go` | 遍历类型图、写文件 |
+| `emit_helpers.go` | 类型/旧值字段辅助 |
+| `generate_golden_test.go` | 双根黄金断言（无 `AddUndo`） |
 
 核心逻辑在 `internal/cowgen`（`graph.go`、`classify.go`、`naming.go`）。
 
