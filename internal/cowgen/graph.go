@@ -52,7 +52,25 @@ func TypeStr(pkg *types.Package, t types.Type) string {
 	})
 }
 
-// RecvIdent 生成方法 receiver 变量名。
+// BasicTypeStr 返回标量底层 basic 名（如 int32、float32）；非标量则回退 TypeStr。
+func BasicTypeStr(pkg *types.Package, t types.Type) string {
+	for {
+		switch u := t.(type) {
+		case *types.Basic:
+			return u.Name()
+		case *types.Named:
+			if b, ok := u.Underlying().(*types.Basic); ok {
+				return b.Name()
+			}
+			t = u.Underlying()
+			continue
+		default:
+			return TypeStr(pkg, t)
+		}
+	}
+}
+
+// RecvIdent 生成方法 receiver 变量名（取类型名首字母小写，如 Player→p、NodeData→n）。
 func RecvIdent(structName string) string {
 	if structName == "" {
 		return "x"

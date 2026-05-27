@@ -106,8 +106,9 @@ func structRefsInType(t types.Type, pkg *types.Package) ([]*types.Named, error) 
 		case *types.Named:
 			if _, ok := u.Underlying().(*types.Struct); ok && u.Obj().Pkg() == pkg {
 				refs = append(refs, u)
+				return nil
 			}
-			return nil
+			return walk(u.Underlying())
 		case *types.Basic:
 			return nil
 		default:

@@ -10,6 +10,8 @@
 
 - 同包类型图；生成 `TxContext` / `undoOp` / `Rollback`（写入 `zz_generated.undo_proxy.go`）。
 - 任意/多根 `+cow:undoproxy-gen=true`；仅结构化 `ctx.push(undoOp{...})`，不生成 `AddUndo`。
+- 指针字段：`Get*ForWrite` + **`Set{Field}`**（整槽替换）；map：**`Put*`** + **`Remove{Field}`**（删 key，不与 Put(nil) 混用）。
+- 同包 **map/slice 类型别名**（如 `type Equips map[int64]*Equip`）可纳入类型图。
 - 不支持跨包嵌套、`interface{}`/channel/func 容器元素。
 - 不替代 `undocheck` / `undorewrite`。
 

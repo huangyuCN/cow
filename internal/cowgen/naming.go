@@ -47,3 +47,13 @@ func MapKeyGetForWriteName(singular string) string {
 func PutFieldName(field string) string {
 	return "Put" + field
 }
+
+// PtrSetName 指针字段整槽替换方法名（MainHero → SetMainHero）。
+func PtrSetName(field string) string {
+	return "Set" + field
+}
+
+// MapRemoveName map 删 key 方法名（Heros → RemoveHeros）。
+func MapRemoveName(field string) string {
+	return "Remove" + field
+}

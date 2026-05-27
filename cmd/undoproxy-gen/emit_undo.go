@@ -20,6 +20,7 @@ type undoBuilder struct {
 	entries      []undoEntry
 	kindIndex    map[string]string
 	sliceSnaps   map[string]string // slice 元素类型 -> undoOp 字段名
+	scalarOlds   map[string]string // 标量类型字符串 -> undoOp 旧值字段名
 	innerMapSnap bool              // 是否需要 statsOld map[string]int64
 }
 
@@ -34,11 +35,15 @@ func newUndoBuilder(g *cowgen.Graph) *undoBuilder {
 		seen[n] = struct{}{}
 		names = append(names, n)
 	}
-	return &undoBuilder{
+	ub := &undoBuilder{
 		structs:    names,
 		kindIndex:  make(map[string]string),
 		sliceSnaps: make(map[string]string),
+		scalarOlds: make(map[string]string),
 	}
+	// slice 下标/长度与标量 int 共用（生成代码中大量 oldInt: i / oldInt: oldLen）
+	ub.scalarOlds["int"] = "oldInt"
+	return ub
 }
 
 func kindName(structName, field, op string) string {
@@ -98,6 +103,86 @@ func (ub *undoBuilder) noteInnerMapSnap() {
 	ub.innerMapSnap = true
 }
 
+// scalarOldField 为标量旧值注册 undoOp 字段（按 Go 类型字符串去重）。
+func (ub *undoBuilder) scalarOldField(goType string) string {
+	if goType == "" {
+		return "oldI64"
+	}
+	if name, ok := ub.scalarOlds[goType]; ok {
+		return name
+	}
+	name := canonicalScalarOldName(goType)
+	for i := 2; ub.scalarOldNameUsed(name); i++ {
+		name = fmt.Sprintf("%s%d", canonicalScalarOldName(goType), i)
+	}
+	ub.scalarOlds[goType] = name
+	return name
+}
+
+func (ub *undoBuilder) scalarOldNameUsed(name string) bool {
+	for _, v := range ub.scalarOlds {
+		if v == name {
+			return true
+		}
+	}
+	return false
+}
+
+// leafStoreField 返回 undoOp 中存放叶子旧值的字段名（标量或 *Struct 指针槽）。
+func (ub *undoBuilder) leafStoreField(goType string) string {
+	if strings.HasPrefix(goType, "*") {
+		return ptrSlotName(goType)
+	}
+	return ub.scalarOldField(goType)
+}
+
+func canonicalScalarOldName(goType string) string {
+	switch goType {
+	case "int32":
+		return "oldI32"
+	case "int64":
+		return "oldI64"
+	case "uint64":
+		return "oldU64"
+	case "uint32":
+		return "oldU32"
+	case "uint16":
+		return "oldU16"
+	case "uint8":
+		return "oldU8"
+	case "int", "uint", "uintptr":
+		return "oldInt"
+	case "string":
+		return "oldString"
+	case "float32":
+		return "oldF32"
+	case "float64":
+		return "oldF64"
+	case "bool":
+		return "oldBool"
+	default:
+		return scalarOldNameFromType(goType)
+	}
+}
+
+func scalarOldNameFromType(goType string) string {
+	var b strings.Builder
+	b.WriteString("old")
+	for _, r := range goType {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			if r >= 'a' && r <= 'z' && b.Len() == 3 {
+				b.WriteRune(r - ('a' - 'A'))
+				continue
+			}
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() <= 3 {
+		return "oldMisc"
+	}
+	return b.String()
+}
+
 func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
 	b.WriteString("type undoKind uint8\n\nconst (\n")
 	for i, e := range ub.entries {
@@ -115,13 +200,15 @@ func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
 	}
 	b.WriteString("\tkeyI32    int32\n")
 	b.WriteString("\tkeyI64    int64\n")
+	b.WriteString("\tkeyU32    uint32\n")
 	b.WriteString("\tkeyU64    uint64\n")
 	b.WriteString("\tkeyString string\n\n")
-	b.WriteString("\toldI32    int32\n")
-	b.WriteString("\toldI64    int64\n")
-	b.WriteString("\toldU64    uint64\n")
-	b.WriteString("\toldInt    int\n")
-	b.WriteString("\toldString string\n\n")
+	for _, goType := range ub.sortedScalarOldTypes() {
+		fmt.Fprintf(b, "\t%s %s\n", ub.scalarOlds[goType], goType)
+	}
+	if len(ub.scalarOlds) > 0 {
+		b.WriteString("\n")
+	}
 	for _, elemType := range ub.sortedSliceTypes() {
 		fmt.Fprintf(b, "\t%s []%s\n", ub.sliceSnaps[elemType], elemType)
 	}
@@ -167,12 +254,15 @@ func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
 	b.WriteString("}\n\n")
 }
 
-func (ub *undoBuilder) sortedSliceTypes() []string {
-	types := make([]string, 0, len(ub.sliceSnaps))
-	for t := range ub.sliceSnaps {
+func (ub *undoBuilder) sortedScalarOldTypes() []string {
+	return sortedMapKeys(ub.scalarOlds)
+}
+
+func sortedMapKeys(m map[string]string) []string {
+	types := make([]string, 0, len(m))
+	for t := range m {
 		types = append(types, t)
 	}
-	// 简单字典序，保证生成稳定
 	for i := 0; i < len(types); i++ {
 		for j := i + 1; j < len(types); j++ {
 			if types[j] < types[i] {
@@ -181,4 +271,8 @@ func (ub *undoBuilder) sortedSliceTypes() []string {
 		}
 	}
 	return types
+}
+
+func (ub *undoBuilder) sortedSliceTypes() []string {
+	return sortedMapKeys(ub.sliceSnaps)
 }

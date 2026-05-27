@@ -29,14 +29,15 @@ type KeyLayer struct {
 
 // FieldPlan 单个字段对应的生成/改写方法计划。
 type FieldPlan struct {
-	FieldName string
-	Kind      FieldKind
-	Keys      []KeyLayer
-	LeafType  string
-	MapValue  string
-	SliceType string
-	SliceElem string
-	ElemName  string
+	FieldName    string
+	Kind         FieldKind
+	Keys         []KeyLayer
+	LeafType     string
+	DeclaredType string // 字段声明类型名（含 map/slice 别名，如 Equips、ItemList）
+	MapValue     string
+	SliceType    string
+	SliceElem    string
+	ElemName     string
 }
 
 // StructPlan 一个 struct 的全部字段计划。

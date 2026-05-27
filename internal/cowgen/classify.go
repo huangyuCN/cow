@@ -6,8 +6,28 @@ import (
 )
 
 func classifyField(t types.Type, pkg *types.Package) (*FieldPlan, error) {
-	plan := &FieldPlan{}
-	return classifyType(t, pkg, plan, nil)
+	plan := &FieldPlan{DeclaredType: TypeStr(pkg, t)}
+	peeled := peelNamedContainers(t, pkg)
+	return classifyType(peeled, pkg, plan, nil)
+}
+
+// peelNamedContainers 剥离同包 map/slice/指针类型别名，直到裸容器或具名 struct/basic。
+func peelNamedContainers(t types.Type, pkg *types.Package) types.Type {
+	for {
+		n, ok := t.(*types.Named)
+		if !ok || n.Obj().Pkg() != pkg {
+			break
+		}
+		switch u := n.Underlying().(type) {
+		case *types.Map, *types.Slice, *types.Pointer:
+			t = u
+			continue
+		default:
+			break
+		}
+		break
+	}
+	return t
 }
 
 func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer) (*FieldPlan, error) {
@@ -49,7 +69,7 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 		}
 		return plan, nil
 	case *types.Map:
-		keyT := TypeStr(pkg, u.Key())
+		keyT := BasicTypeStr(pkg, u.Key())
 		keys = append(keys, KeyLayer{KeyType: keyT})
 		elem := u.Elem()
 		if len(keys) == 1 {
@@ -64,18 +84,18 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 			return nil, fmt.Errorf("unexpected scalar in nested path")
 		}
 		plan.Kind = KindScalar
-		plan.LeafType = t.String()
+		plan.LeafType = u.Name()
 		return plan, nil
 	case *types.Named:
 		if _, ok := u.Underlying().(*types.Basic); ok {
 			if len(keys) > 0 {
 				plan.Kind = KindMapScalar
-				plan.LeafType = TypeStr(pkg, t)
+				plan.LeafType = BasicTypeStr(pkg, t)
 				plan.Keys = keys
 				return plan, nil
 			}
 			plan.Kind = KindScalar
-			plan.LeafType = TypeStr(pkg, t)
+			plan.LeafType = BasicTypeStr(pkg, t)
 			return plan, nil
 		}
 		if _, ok := u.Underlying().(*types.Struct); ok && u.Obj().Pkg() == pkg {
@@ -111,7 +131,7 @@ func classifyMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys 
 	switch e := elem.(type) {
 	case *types.Basic:
 		plan.Kind = KindMapScalar
-		plan.LeafType = TypeStr(pkg, elem)
+		plan.LeafType = e.Name()
 		return plan, nil
 	case *types.Pointer:
 		if named, ok := e.Elem().(*types.Named); ok {

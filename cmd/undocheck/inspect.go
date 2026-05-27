@@ -50,7 +50,30 @@ func inspectStmt(pass *analysis.Pass, mon *cowmon.MonitoredSet, fnDoc *ast.Comme
 		checkExpr(pass, mon, s.X, writeScalar, s.Pos())
 	case *ast.CompositeLit:
 		checkComposite(pass, mon, s)
+	case *ast.CallExpr:
+		if id, ok := s.Fun.(*ast.Ident); ok && id.Name == "delete" && len(s.Args) >= 1 {
+			checkMapDelete(pass, mon, s.Args[0], s.Pos())
+		}
 	}
+}
+
+func checkMapDelete(pass *analysis.Pass, mon *cowmon.MonitoredSet, mapExpr ast.Expr, pos token.Pos) {
+	tv := pass.TypesInfo.Types[mapExpr]
+	if tv.Type == nil {
+		return
+	}
+	if _, isMap := tv.Type.Underlying().(*types.Map); !isMap {
+		return
+	}
+	root := rootMonitoredStruct(pass, mapExpr)
+	if root == "" || !mon.ContainsName(root) {
+		return
+	}
+	field := fieldNameFromExpr(pass, mapExpr)
+	if field == "" {
+		return
+	}
+	reportBare(pass, root, field, writeMapDelete, pos)
 }
 
 func checkComposite(pass *analysis.Pass, mon *cowmon.MonitoredSet, lit *ast.CompositeLit) {

@@ -16,11 +16,14 @@ func emitStructuredMethods(b *bytes.Buffer, ub *undoBuilder, structName string, 
 		emitStructuredScalarPut(b, ub, structName, r, acc, plan)
 	case cowgen.KindPtrStruct:
 		emitStructuredPtrGetForWrite(b, ub, structName, r, acc, plan.FieldName, plan.LeafType)
+		emitStructuredPtrSet(b, ub, structName, r, acc, plan)
 	case cowgen.KindMapScalar, cowgen.KindMapStruct:
 		emitStructuredMapPut(b, ub, structName, r, acc, plan, false)
+		emitStructuredMapRemove(b, ub, structName, r, acc, plan)
 	case cowgen.KindMapPtrStruct:
 		emitStructuredMapPtrGet(b, ub, structName, r, acc, plan)
 		emitStructuredMapPut(b, ub, structName, r, acc, plan, true)
+		emitStructuredMapRemove(b, ub, structName, r, acc, plan)
 	case cowgen.KindSliceValue, cowgen.KindSlicePtr:
 		emitStructuredSliceOps(b, ub, structName, r, acc, plan, "")
 	case cowgen.KindMapSliceValue, cowgen.KindMapSlicePtr:
@@ -28,10 +31,12 @@ func emitStructuredMethods(b *bytes.Buffer, ub *undoBuilder, structName string, 
 	case cowgen.KindMapMapScalar, cowgen.KindMapMapStruct:
 		emitStructuredMapMapPut(b, ub, structName, r, acc, plan, false)
 		emitStructuredMapMapGetForWrite(b, ub, structName, r, acc, plan)
+		emitStructuredMapMapRemove(b, ub, structName, r, acc, plan)
 	case cowgen.KindMapMapPtrStruct:
 		emitStructuredMapMapPtrGet(b, ub, structName, r, acc, plan)
 		emitStructuredMapMapPut(b, ub, structName, r, acc, plan, true)
 		emitStructuredMapMapGetForWrite(b, ub, structName, r, acc, plan)
+		emitStructuredMapMapRemove(b, ub, structName, r, acc, plan)
 	case cowgen.KindMapMapSliceValue, cowgen.KindMapMapSlicePtr:
 		emitStructuredMapMapSliceOps(b, ub, structName, r, acc, plan)
 	}
@@ -43,7 +48,7 @@ func fieldFromAcc(r, acc string) string {
 
 func emitStructuredScalarPut(b *bytes.Buffer, ub *undoBuilder, structName, r, acc string, plan cowgen.FieldPlan) {
 	field := fieldFromAcc(r, acc)
-	oldF := oldStoreField(plan.LeafType)
+	oldF := ub.scalarOldField(plan.LeafType)
 	recv := recvLower(structName)
 	kind := ub.kind(structName, field, "ScalarSet",
 		fmt.Sprintf("op.%s.%s = op.%s", recv, field, oldF))
@@ -87,12 +92,12 @@ func emitStructuredMapPut(b *bytes.Buffer, ub *undoBuilder, structName, r, acc s
 	}
 	recv := recvLower(structName)
 	keyField := mapKeyField(plan.Keys[0].KeyType)
-	oldF := leafStoreField(plan.LeafType)
+	oldF := ub.leafStoreField(plan.LeafType)
 	kind := ub.kind(structName, field, "MapKeySet",
 		fmt.Sprintf("if op.had { op.%s.%s[op.%s] = op.%s } else { delete(op.%s.%s, op.%s) }",
 			recv, field, keyField, oldF, recv, field, keyField))
 	fmt.Fprintf(b, "func (%s *%s) Put%s(ctx *TxContext, %s, val %s) {\n", r, structName, plan.FieldName, kp, valType)
-	emitStructuredMapEnsure(b, ub, structName, r, acc, "map["+plan.Keys[0].KeyType+"]"+valueTypeForMap(plan))
+	emitStructuredMapEnsure(b, ub, structName, r, acc, mapTypeFromPlan(plan))
 	fmt.Fprintf(b, "\told, existed := %s[%s]\n", acc, ka)
 	if ptrClone {
 		fmt.Fprintf(b, "\tif val != nil {\n\t\tval = val.CloneForWrite()\n\t}\n")
@@ -139,6 +144,8 @@ func emitStructuredSliceOps(b *bytes.Buffer, ub *undoBuilder, structName, r, acc
 	}
 	field := plan.FieldName
 	recv := recvLower(structName)
+	idx := indexParamName(r)
+	truncLen := truncateLenParamName(r)
 	kindTrunc := ub.kind(structName, field, "SliceTruncate",
 		fmt.Sprintf("op.%s.%s = op.%s.%s[:op.oldInt]", recv, field, recv, field))
 	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, elem %s) {\n", r, structName, names.Append, elem)
@@ -147,28 +154,28 @@ func emitStructuredSliceOps(b *bytes.Buffer, ub *undoBuilder, structName, r, acc
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, oldInt: oldLen})\n", kindTrunc, ub.recvArg(structName, r))
 	fmt.Fprintf(b, "}\n\n")
 
-	oldF := leafStoreField(elem)
+	oldF := ub.leafStoreField(elem)
 	kindSet := ub.kind(structName, field, "SliceSetAt",
 		fmt.Sprintf("op.%s.%s[op.oldInt] = op.%s", recv, field, oldF))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, i int, elem %s) {\n", r, structName, names.SetAt, elem)
-	fmt.Fprintf(b, "\told := %s[i]\n", acc)
-	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: old, oldInt: i})\n", kindSet, ub.recvArg(structName, r), oldF)
-	fmt.Fprintf(b, "\t%s[i] = elem\n}\n\n", acc)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s int, elem %s) {\n", r, structName, names.SetAt, idx, elem)
+	fmt.Fprintf(b, "\told := %s[%s]\n", acc, idx)
+	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: old, oldInt: %s})\n", kindSet, ub.recvArg(structName, r), oldF, idx)
+	fmt.Fprintf(b, "\t%s[%s] = elem\n}\n\n", acc, idx)
 
 	snap := ub.snapField(elem)
 	kindRemove := ub.kind(structName, field, "SliceRestore",
 		fmt.Sprintf("op.%s.%s = append([]%s(nil), op.%s...)", recv, field, elem, snap))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, i int) {\n", r, structName, names.RemoveAt)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s int) {\n", r, structName, names.RemoveAt, idx)
 	fmt.Fprintf(b, "\toldLen := len(%s)\n", acc)
 	fmt.Fprintf(b, "\ttail := append([]%s(nil), %s...)\n", elem, acc)
-	fmt.Fprintf(b, "\t%s = append(%s[:i], %s[i+1:]...)\n", acc, acc, acc)
+	fmt.Fprintf(b, "\t%s = append(%s[:%s], %s[%s+1:]...)\n", acc, acc, idx, acc, idx)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: tail, oldInt: oldLen})\n", kindRemove, ub.recvArg(structName, r), snap)
 	fmt.Fprintf(b, "}\n\n")
 
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, n int) {\n", r, structName, names.Truncate)
-	fmt.Fprintf(b, "\tif n >= len(%s) {\n\t\treturn\n\t}\n", acc)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s int) {\n", r, structName, names.Truncate, truncLen)
+	fmt.Fprintf(b, "\tif %s >= len(%s) {\n\t\treturn\n\t}\n", truncLen, acc)
 	fmt.Fprintf(b, "\toldLen := len(%s)\n", acc)
-	fmt.Fprintf(b, "\t%s = %s[:n]\n", acc, acc)
+	fmt.Fprintf(b, "\t%s = %s[:%s]\n", acc, acc, truncLen)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, oldInt: oldLen})\n", kindTrunc, ub.recvArg(structName, r))
 	fmt.Fprintf(b, "}\n\n")
 }
@@ -224,34 +231,36 @@ func emitStructuredMapSliceSet(b *bytes.Buffer, ub *undoBuilder, structName, r, 
 	field := plan.FieldName
 	ka := cowgen.KeyArgs(plan.Keys)
 	recv := recvLower(structName)
+	idx := indexParamName(r)
 	keyField := "keyI32"
 	if plan.Keys[0].KeyType == "string" {
 		keyField = "keyString"
 	}
-	oldF := leafStoreField(elem)
+	oldF := ub.leafStoreField(elem)
 	kind := ub.kind(structName, field, "MapSliceElemSet",
 		fmt.Sprintf("op.%s.%s[op.%s][op.oldInt] = op.%s", recv, field, keyField, oldF))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, i int, elem %s) {\n", r, structName, names.SetAt, kp, elem)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int, elem %s) {\n", r, structName, names.SetAt, kp, idx, elem)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, mapTypeString(plan))
-	fmt.Fprintf(b, "\toldElem := %s[%s][i]\n", acc, ka)
-	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: %s, %s: oldElem, oldInt: i})\n",
-		kind, ub.recvArg(structName, r), keyField, ka, oldF)
-	fmt.Fprintf(b, "\t%s[%s][i] = elem\n}\n\n", acc, ka)
+	fmt.Fprintf(b, "\toldElem := %s[%s][%s]\n", acc, ka, idx)
+	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: %s, %s: oldElem, oldInt: %s})\n",
+		kind, ub.recvArg(structName, r), keyField, ka, oldF, idx)
+	fmt.Fprintf(b, "\t%s[%s][%s] = elem\n}\n\n", acc, ka, idx)
 }
 
 func emitStructuredMapSliceRemove(b *bytes.Buffer, ub *undoBuilder, structName, r, acc string, plan cowgen.FieldPlan, names cowgen.SliceMethods, elem, kp string) {
 	field := plan.FieldName
 	ka := cowgen.KeyArgs(plan.Keys)
 	recv := recvLower(structName)
+	idx := indexParamName(r)
 	keyField := "keyI32"
 	snap := ub.snapField(elem)
 	kind := ub.kind(structName, field, "MapSliceRestore",
 		fmt.Sprintf("op.%s.%s[op.%s] = append([]%s(nil), op.%s...)", recv, field, keyField, elem, snap))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, i int) {\n", r, structName, names.RemoveAt, kp)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int) {\n", r, structName, names.RemoveAt, kp, idx)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, mapTypeString(plan))
 	fmt.Fprintf(b, "\told, existed := %s[%s]\n", acc, ka)
 	fmt.Fprintf(b, "\toldCopy := append([]%s(nil), old...)\n", elem)
-	fmt.Fprintf(b, "\t%s[%s] = append(old[:i], old[i+1:]...)\n", acc, ka)
+	fmt.Fprintf(b, "\t%s[%s] = append(old[:%s], old[%s+1:]...)\n", acc, ka, idx, idx)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: %s, %s: oldCopy, had: existed})\n",
 		kind, ub.recvArg(structName, r), keyField, ka, snap)
 	fmt.Fprintf(b, "}\n\n")
@@ -262,16 +271,17 @@ func emitStructuredMapSliceTruncate(b *bytes.Buffer, ub *undoBuilder, structName
 	ka := cowgen.KeyArgs(plan.Keys)
 	elem := plan.SliceElem
 	recv := recvLower(structName)
+	truncLen := truncateLenParamName(r)
 	keyField := "keyI32"
 	snap := ub.snapField(elem)
 	kind := ub.kind(structName, field, "MapSliceRestore",
 		fmt.Sprintf("op.%s.%s[op.%s] = append([]%s(nil), op.%s...)", recv, field, keyField, elem, snap))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, n int) {\n", r, structName, names.Truncate, kp)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int) {\n", r, structName, names.Truncate, kp, truncLen)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, mapTypeString(plan))
 	fmt.Fprintf(b, "\told, existed := %s[%s]\n", acc, ka)
-	fmt.Fprintf(b, "\tif n >= len(old) {\n\t\treturn\n\t}\n")
+	fmt.Fprintf(b, "\tif %s >= len(old) {\n\t\treturn\n\t}\n", truncLen)
 	fmt.Fprintf(b, "\toldCopy := append([]%s(nil), old...)\n", elem)
-	fmt.Fprintf(b, "\t%s[%s] = old[:n]\n", acc, ka)
+	fmt.Fprintf(b, "\t%s[%s] = old[:%s]\n", acc, ka, truncLen)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: %s, %s: oldCopy, had: existed})\n",
 		kind, ub.recvArg(structName, r), keyField, ka, snap)
 	fmt.Fprintf(b, "}\n\n")
@@ -286,18 +296,19 @@ func emitStructuredMapSliceElemGet(b *bytes.Buffer, ub *undoBuilder, structName,
 	}
 	slot := ptrSlotName(plan.SliceElem)
 	recv := recvLower(structName)
+	idx := indexParamName(r)
 	keyField := "keyI32"
 	kind := ub.kind(structName, field, "MapSlicePtrReplace",
-		fmt.Sprintf("op.%s.%s[op.%s][i] = op.%s", recv, field, keyField, slot))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, i int) %s {\n",
-		r, structName, cowgen.ElemAtForWriteName(en), kp, plan.SliceElem)
+		fmt.Sprintf("op.%s.%s[op.%s][op.oldInt] = op.%s", recv, field, keyField, slot))
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int) %s {\n",
+		r, structName, cowgen.ElemAtForWriteName(en), kp, idx, plan.SliceElem)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, mapTypeString(plan))
-	fmt.Fprintf(b, "\told := %s[%s][i]\n", acc, ka)
+	fmt.Fprintf(b, "\told := %s[%s][%s]\n", acc, ka, idx)
 	fmt.Fprintf(b, "\tif old == nil {\n\t\treturn nil\n\t}\n")
 	fmt.Fprintf(b, "\tdirty := old.CloneForWrite()\n")
-	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: %s, %s: old, oldInt: i})\n",
-		kind, ub.recvArg(structName, r), keyField, ka, slot)
-	fmt.Fprintf(b, "\t%s[%s][i] = dirty\n", acc, ka)
+	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: %s, %s: old, oldInt: %s})\n",
+		kind, ub.recvArg(structName, r), keyField, ka, slot, idx)
+	fmt.Fprintf(b, "\t%s[%s][%s] = dirty\n", acc, ka, idx)
 	fmt.Fprintf(b, "\treturn dirty\n}\n\n")
 }
 
@@ -309,7 +320,7 @@ func emitStructuredMapMapPut(b *bytes.Buffer, ub *undoBuilder, structName, r, ac
 	recv := recvLower(structName)
 	kindOuter := ub.kind(structName, field, "MapMapOuterDelete",
 		fmt.Sprintf("delete(op.%s.%s, op.keyI32)", recv, field))
-	oldF := leafStoreField(plan.LeafType)
+	oldF := ub.leafStoreField(plan.LeafType)
 	kindInner := ub.kind(structName, field, "MapMapInnerKeySet",
 		fmt.Sprintf(`inner := op.%s.%s[op.keyI32]
 if op.had { inner[op.keyString] = op.%s } else { delete(inner, op.keyString) }`, recv, field, oldF))
@@ -450,29 +461,31 @@ func emitStructuredMapMapSliceSet(b *bytes.Buffer, ub *undoBuilder, structName, 
 	field := plan.FieldName
 	slot := ptrSlotName(elem)
 	recv := recvLower(structName)
+	idx := indexParamName(r)
 	kind := ub.kind(structName, field, "MapMapSliceElemSet",
-		fmt.Sprintf("op.%s.%s[op.keyI32][op.keyString][i] = op.%s", recv, field, slot))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, i int, elem %s) {\n", r, structName, names.SetAt, kp, elem)
+		fmt.Sprintf("op.%s.%s[op.keyI32][op.keyString][op.oldInt] = op.%s", recv, field, slot))
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int, elem %s) {\n", r, structName, names.SetAt, kp, idx, elem)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, "map["+plan.Keys[0].KeyType+"]"+plan.MapValue)
 	fmt.Fprintf(b, "\tinner := %s[k1]\n", acc)
-	fmt.Fprintf(b, "\told := inner[k2][i]\n")
-	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, keyI32: k1, keyString: k2, %s: old, oldInt: i})\n",
-		kind, ub.recvArg(structName, r), slot)
-	fmt.Fprintf(b, "\tinner[k2][i] = elem\n}\n\n")
+	fmt.Fprintf(b, "\told := inner[k2][%s]\n", idx)
+	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, keyI32: k1, keyString: k2, %s: old, oldInt: %s})\n",
+		kind, ub.recvArg(structName, r), slot, idx)
+	fmt.Fprintf(b, "\tinner[k2][%s] = elem\n}\n\n", idx)
 }
 
 func emitStructuredMapMapSliceRemove(b *bytes.Buffer, ub *undoBuilder, structName, r, acc string, plan cowgen.FieldPlan, names cowgen.SliceMethods, elem, kp string) {
 	field := plan.FieldName
 	recv := recvLower(structName)
+	idx := indexParamName(r)
 	snap := ub.snapField(elem)
 	kind := ub.kind(structName, field, "MapMapSliceRestore",
 		fmt.Sprintf("op.%s.%s[op.keyI32][op.keyString] = append([]%s(nil), op.%s...)", recv, field, elem, snap))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, i int) {\n", r, structName, names.RemoveAt, kp)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int) {\n", r, structName, names.RemoveAt, kp, idx)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, "map["+plan.Keys[0].KeyType+"]"+plan.MapValue)
 	fmt.Fprintf(b, "\tinner := %s[k1]\n", acc)
 	fmt.Fprintf(b, "\ts := inner[k2]\n")
 	fmt.Fprintf(b, "\toldCopy := append([]%s(nil), s...)\n", elem)
-	fmt.Fprintf(b, "\tinner[k2] = append(s[:i], s[i+1:]...)\n")
+	fmt.Fprintf(b, "\tinner[k2] = append(s[:%s], s[%s+1:]...)\n", idx, idx)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, keyI32: k1, keyString: k2, %s: oldCopy})\n",
 		kind, ub.recvArg(structName, r), snap)
 	fmt.Fprintf(b, "}\n\n")
@@ -482,16 +495,17 @@ func emitStructuredMapMapSliceTruncate(b *bytes.Buffer, ub *undoBuilder, structN
 	field := plan.FieldName
 	elem := plan.SliceElem
 	recv := recvLower(structName)
+	truncLen := truncateLenParamName(r)
 	snap := ub.snapField(elem)
 	kind := ub.kind(structName, field, "MapMapSliceRestore",
 		fmt.Sprintf("op.%s.%s[op.keyI32][op.keyString] = append([]%s(nil), op.%s...)", recv, field, elem, snap))
-	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, n int) {\n", r, structName, names.Truncate, kp)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s, %s int) {\n", r, structName, names.Truncate, kp, truncLen)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, "map["+plan.Keys[0].KeyType+"]"+plan.MapValue)
 	fmt.Fprintf(b, "\tinner := %s[k1]\n", acc)
 	fmt.Fprintf(b, "\ts := inner[k2]\n")
-	fmt.Fprintf(b, "\tif n >= len(s) {\n\t\treturn\n\t}\n")
+	fmt.Fprintf(b, "\tif %s >= len(s) {\n\t\treturn\n\t}\n", truncLen)
 	fmt.Fprintf(b, "\toldCopy := append([]%s(nil), s...)\n", elem)
-	fmt.Fprintf(b, "\tinner[k2] = s[:n]\n")
+	fmt.Fprintf(b, "\tinner[k2] = s[:%s]\n", truncLen)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, keyI32: k1, keyString: k2, %s: oldCopy})\n",
 		kind, ub.recvArg(structName, r), snap)
 	fmt.Fprintf(b, "}\n\n")

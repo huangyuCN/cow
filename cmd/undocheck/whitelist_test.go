@@ -18,6 +18,9 @@ func TestSuggestProxy(t *testing.T) {
 	if got := suggestProxy("Player", "Level", writeScalar); got != "PutLevel(ctx, …)" {
 		t.Fatalf("got %q", got)
 	}
+	if got := suggestProxy("Player", "Heros", writeMapDelete); got != "RemoveHeros(ctx, key)" {
+		t.Fatalf("got %q", got)
+	}
 	if got := suggestProxy("Player", "Items", writeSliceAppend); got != "AppendItems(ctx, …)" {
 		t.Fatalf("got %q", got)
 	}

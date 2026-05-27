@@ -32,3 +32,15 @@ func TestMapForWriteName(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestPtrSetName(t *testing.T) {
+	if got := cowgen.PtrSetName("MainHero"); got != "SetMainHero" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestMapRemoveName(t *testing.T) {
+	if got := cowgen.MapRemoveName("Heros"); got != "RemoveHeros" {
+		t.Fatalf("got %q", got)
+	}
+}

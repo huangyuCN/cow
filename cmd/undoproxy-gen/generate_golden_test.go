@@ -23,7 +23,16 @@ func TestGenerate_NoAddUndo_DualRoot(t *testing.T) {
 			t.Fatalf("generated contains %q", bad)
 		}
 	}
-	for _, good := range []string{"type undoKind", "func (ctx *TxContext) push", "func (p *Player)", "func (r *Room)"} {
+	for _, good := range []string{
+		"type undoKind",
+		"func (ctx *TxContext) push",
+		"func (p *Player)",
+		"func (r *Room)",
+		"SetMainHero",
+		"RemoveHeros",
+		"PutEquips",
+		"RemoveEquips",
+	} {
 		if !strings.Contains(s, good) {
 			t.Fatalf("generated missing %q", good)
 		}

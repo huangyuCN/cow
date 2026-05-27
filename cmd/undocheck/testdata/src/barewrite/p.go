@@ -6,6 +6,11 @@ package barewrite
 type Player struct {
 	Level int32
 	Items []*Item
+	Heros map[int32]*Hero
+}
+
+type Hero struct {
+	Level int32
 }
 
 // Item 嵌套类型。

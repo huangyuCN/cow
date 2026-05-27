@@ -8,6 +8,8 @@ import (
 // FieldMethods 某 struct 某字段的代理方法名（与 undoproxy-gen 一致）。
 type FieldMethods struct {
 	Put            string
+	Set            string
+	Remove         string
 	Append         string
 	SetAt          string
 	RemoveAt       string
@@ -52,9 +54,11 @@ func methodsFromPlan(plan cowgen.FieldPlan) FieldMethods {
 		fm.MapPutKeyCount = 0
 	case cowgen.KindPtrStruct:
 		fm.GetForWrite = cowgen.PtrGetForWriteName(plan.FieldName)
+		fm.Set = cowgen.PtrSetName(plan.FieldName)
 		fm.TargetStruct = plan.ElemName
 	case cowgen.KindMapScalar, cowgen.KindMapStruct, cowgen.KindMapPtrStruct:
 		fm.MapPutKeyCount = len(plan.Keys)
+		fm.Remove = cowgen.MapRemoveName(plan.FieldName)
 		if plan.Kind == cowgen.KindMapPtrStruct {
 			fm.GetForWrite = cowgen.MapKeyGetForWriteName(plan.ElemName)
 			fm.TargetStruct = plan.ElemName
@@ -73,6 +77,7 @@ func methodsFromPlan(plan cowgen.FieldPlan) FieldMethods {
 	case cowgen.KindMapMapScalar, cowgen.KindMapMapStruct, cowgen.KindMapMapPtrStruct,
 		cowgen.KindMapMapSliceValue, cowgen.KindMapMapSlicePtr:
 		fm.MapPutKeyCount = 2
+		fm.Remove = cowgen.MapRemoveName(plan.FieldName)
 		fm.MapForWrite = cowgen.MapForWriteName(plan.FieldName)
 		if plan.Kind == cowgen.KindMapMapPtrStruct {
 			// 双层 map 的 *Struct 值用 Put 双层键，无单独 Get
