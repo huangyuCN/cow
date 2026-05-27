@@ -7,22 +7,29 @@ import (
 
 // MonitoredSet 纳入 bare-write 检查的具名 struct（根类型 BFS 同包可达）。
 type MonitoredSet struct {
-	ByName map[string]*types.Named
+	// byObj 以 *types.TypeName 为键，避免不同包同名 struct 误判。
+	byObj map[*types.TypeName]struct{}
+	// pkgPath 为本集合所属包路径（仅供 ContainsName 单包测试用）。
+	pkgPath string
 }
 
-// ContainsName 按类型名判断。
+// ContainsName 按类型名判断（仅限 MonitoredSet 所属包内的类型名）。
 func (s *MonitoredSet) ContainsName(name string) bool {
-	_, ok := s.ByName[name]
-	return ok
+	for obj := range s.byObj {
+		if obj.Name() == name && obj.Pkg().Path() == s.pkgPath {
+			return true
+		}
+	}
+	return false
 }
 
-// Contains 判断类型是否为监控 struct（含 *T）。
+// Contains 判断类型是否为监控 struct（含 *T），按类型对象身份匹配。
 func (s *MonitoredSet) Contains(t types.Type) bool {
 	named := namedStruct(t)
 	if named == nil {
 		return false
 	}
-	_, ok := s.ByName[named.Obj().Name()]
+	_, ok := s.byObj[named.Obj()]
 	return ok
 }
 
@@ -36,9 +43,12 @@ func LoadMonitored(importPath string) (*MonitoredSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	set := &MonitoredSet{ByName: make(map[string]*types.Named, len(reachable))}
+	set := &MonitoredSet{
+		byObj:   make(map[*types.TypeName]struct{}, len(reachable)),
+		pkgPath: info.ImportPath,
+	}
 	for _, n := range reachable {
-		set.ByName[n.Obj().Name()] = n
+		set.byObj[n.Obj()] = struct{}{}
 	}
 	return set, nil
 }

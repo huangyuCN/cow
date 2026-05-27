@@ -7,5 +7,5 @@ import (
 )
 
 func TestAnalyzer(t *testing.T) {
-	analysistest.Run(t, analysistest.TestData(), Analyzer, "barewrite")
+	analysistest.Run(t, analysistest.TestData(), Analyzer, "barewrite", "homonym/domain")
 }

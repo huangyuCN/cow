@@ -66,14 +66,14 @@ func checkMapDelete(pass *analysis.Pass, mon *cowmon.MonitoredSet, mapExpr ast.E
 		return
 	}
 	root := rootMonitoredStruct(pass, mapExpr)
-	if root == "" || !mon.ContainsName(root) {
+	if root == nil || !mon.Contains(root) {
 		return
 	}
 	field := fieldNameFromExpr(pass, mapExpr)
 	if field == "" {
 		return
 	}
-	reportBare(pass, root, field, writeMapDelete, pos)
+	reportBare(pass, root.Obj().Name(), field, writeMapDelete, pos)
 }
 
 func checkComposite(pass *analysis.Pass, mon *cowmon.MonitoredSet, lit *ast.CompositeLit) {
@@ -105,40 +105,40 @@ func checkComposite(pass *analysis.Pass, mon *cowmon.MonitoredSet, lit *ast.Comp
 }
 
 func checkExpr(pass *analysis.Pass, mon *cowmon.MonitoredSet, expr ast.Expr, kind writeKind, pos token.Pos) {
-	field, typeName, ok := monitoredWriteTarget(pass, expr)
-	if !ok || !mon.ContainsName(typeName) {
+	field, root, ok := monitoredWriteTarget(pass, expr)
+	if !ok || !mon.Contains(root) {
 		return
 	}
-	reportBare(pass, typeName, field, kind, pos)
+	reportBare(pass, root.Obj().Name(), field, kind, pos)
 }
 
-// monitoredWriteTarget 解析写左值：返回字段名、监控类型名。
-func monitoredWriteTarget(pass *analysis.Pass, expr ast.Expr) (field, typeName string, ok bool) {
+// monitoredWriteTarget 解析写左值：返回字段名与根 struct 类型。
+func monitoredWriteTarget(pass *analysis.Pass, expr ast.Expr) (field string, root *types.Named, ok bool) {
 	switch e := expr.(type) {
 	case *ast.SelectorExpr:
 		tv := pass.TypesInfo.Types[e.X]
 		if tv.Type == nil {
-			return "", "", false
+			return "", nil, false
 		}
 		named := namedStructType(tv.Type)
 		if named == nil {
-			return "", "", false
+			return "", nil, false
 		}
 		sel := pass.TypesInfo.Selections[e]
 		if sel == nil || !sel.Obj().Exported() {
-			return "", "", false
+			return "", nil, false
 		}
 		if _, ok := sel.Obj().(*types.Var); !ok {
-			return "", "", false
+			return "", nil, false
 		}
-		return sel.Obj().Name(), named.Obj().Name(), true
+		return sel.Obj().Name(), named, true
 	case *ast.IndexExpr:
 		tv := pass.TypesInfo.Types[e.X]
 		if tv.Type == nil {
-			return "", "", false
+			return "", nil, false
 		}
 		// map/slice 下标写：根为监控 struct 字段则报
-		if root := rootMonitoredStruct(pass, e.X); root != "" {
+		if root := rootMonitoredStruct(pass, e.X); root != nil {
 			if _, isMap := tv.Type.Underlying().(*types.Map); isMap {
 				if field := fieldNameFromExpr(pass, e.X); field != "" {
 					return field, root, true
@@ -151,22 +151,22 @@ func monitoredWriteTarget(pass *analysis.Pass, expr ast.Expr) (field, typeName s
 			}
 		}
 		// 内层 map[string]int64 等：根不是监控 struct 类型则不报
-		return "", "", false
+		return "", nil, false
 	default:
-		return "", "", false
+		return "", nil, false
 	}
 }
 
-func rootMonitoredStruct(pass *analysis.Pass, expr ast.Expr) string {
+func rootMonitoredStruct(pass *analysis.Pass, expr ast.Expr) *types.Named {
 	for {
 		switch e := expr.(type) {
 		case *ast.SelectorExpr:
 			tv := pass.TypesInfo.Types[e.X]
 			if tv.Type == nil {
-				return ""
+				return nil
 			}
 			if named := namedStructType(tv.Type); named != nil {
-				return named.Obj().Name()
+				return named
 			}
 			expr = e.X
 		case *ast.IndexExpr:
@@ -174,14 +174,14 @@ func rootMonitoredStruct(pass *analysis.Pass, expr ast.Expr) string {
 		case *ast.Ident:
 			tv := pass.TypesInfo.Types[e]
 			if tv.Type == nil {
-				return ""
+				return nil
 			}
 			if named := namedStructType(tv.Type); named != nil {
-				return named.Obj().Name()
+				return named
 			}
-			return ""
+			return nil
 		default:
-			return ""
+			return nil
 		}
 	}
 }

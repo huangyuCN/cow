@@ -17,9 +17,12 @@ func BuildFromSyntax(pkg *types.Package, files []*ast.File) (*MonitoredSet, erro
 	if err != nil {
 		return nil, err
 	}
-	set := &MonitoredSet{ByName: make(map[string]*types.Named, len(reachable))}
+	set := &MonitoredSet{
+		byObj:   make(map[*types.TypeName]struct{}, len(reachable)),
+		pkgPath: info.ImportPath,
+	}
 	for _, n := range reachable {
-		set.ByName[n.Obj().Name()] = n
+		set.byObj[n.Obj()] = struct{}{}
 	}
 	return set, nil
 }
