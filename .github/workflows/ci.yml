@@ -26,6 +26,16 @@ jobs:
           cache: true
       - run: cd examples/gamestore && go test ./... -count=1 && go build -o /dev/null ./cmd/demo
 
+  example-gamestore-migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache: true
+      - run: cd examples/gamestore-migrate && go test ./before/... ./after/... -count=1
+
   vet-undocheck:
     runs-on: ubuntu-latest
     needs: test

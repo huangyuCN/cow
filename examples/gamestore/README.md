@@ -43,7 +43,7 @@ go vet -vettool=$(go env GOPATH)/bin/undocheck ./...
 
 ## 存量裸写迁移
 
-本示例不包含 `undorewrite` 执行步骤，见 [docs/guide/migration-undorewrite.md](../../docs/guide/migration-undorewrite.md)。
+本示例不包含 `undorewrite` 执行步骤，见 [docs/guide/migration-undorewrite.md](../../docs/guide/migration-undorewrite.md)。如果你希望“可跟跑”的完整切换参考，可以先看 [examples/gamestore-migrate/README.md](../gamestore-migrate/README.md)。
 
 ## 相关文档
 

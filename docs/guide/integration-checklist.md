@@ -26,6 +26,7 @@
 - [ ] `undorewrite ./...` dry-run 审查 diff
 - [ ] `undorewrite -w` 后再次 `go vet` 无 `cowbarewrite` 诊断
 - [ ] `go test ./...` 通过
+- [ ] 参考 [examples/gamestore-migrate/README.md](../../examples/gamestore-migrate/README.md) 完整切换参考（C1）
 
 ## 文档
 
