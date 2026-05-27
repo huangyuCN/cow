@@ -48,7 +48,7 @@
 | `.superpowers/` | 仅本地临时产物（`AGENTS.md` 禁止入库） |
 | benchmark 临时原始 `*.txt` | 仅归档 Markdown 对比表（见 `benchmarks/README.md`） |
 
-发布前执行：`git grep -E 'MVP_REQUIREMENTS|save_historey|new\.md'` 应无命中（superpowers 历史 spec 内引用须在 P2 清理为 guide 链接）。
+发布前执行：`git grep -E '需求草稿|save_historey|new\.md'` 应无命中（`docs/guide` 与生产代码已无引用；superpowers 历史 spec 中仅保留「已删除草稿」说明性文字，见 [2026-05-27-production-readiness-docs-design.md](2026-05-27-production-readiness-docs-design.md)）。
 
 ### 4.3 `docs/README.md` 贡献者阅读顺序（实现项）
 
@@ -110,11 +110,11 @@ jobs:
 
 ## 7. 开源后维护（P2）
 
-| # | 任务 |
-|---|------|
-| 1 | 清理 superpowers 内对 `MVP_REQUIREMENTS.md`、`new.md`、`save_historey.md` 的引用 → 改为 `docs/guide/*` 链接 |
-| 2 | 新增 `examples/` 最小可运行样例 |
-| 3 | README 英文摘要（2–3 行） |
+| # | 任务 | 状态 |
+|---|------|------|
+| 1 | 清理 superpowers 内对已删草稿文件的引用 → 改为 `docs/guide/*` 链接 | **已完成**（2026-05-27） |
+| 2 | 新增 `examples/` 最小可运行样例 | **已完成**（`examples/gamestore/`） |
+| 3 | README 英文摘要（2–3 行） | 待定 |
 
 ## 8. 与集成文档的边界（防混淆）
 

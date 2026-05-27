@@ -1,11 +1,14 @@
-# COW Undo Log MVP 设计说明
+# COW Undo Log 设计说明
 
 | 项 | 值 |
 |---|---|
 | 状态 | 已批准（brainstorming 2026-05-25） |
 | 模块 | `github.com/huangyuCN/cow` |
 | 需求来源 | 已并入 [docs/guide/overview.md](../../guide/overview.md)（2026-05-25） |
-| 前置 | 不沿用已删除的 `TxSession` / 路径 COW 实现；本次为全新 Undo Log 验证 |
+| 前置 | 不沿用已删除的 `TxSession` / 路径 COW 实现 |
+| 现行文档 | 集成方以 [docs/guide/overview.md](../../guide/overview.md)、[codegen-undoproxy.md](../../guide/codegen-undoproxy.md) 为准 |
+
+> **当前实现：** `undoproxy-gen` 生成 `zz_generated.undo_proxy.go`（含 `TxContext`、`undoOp`、`Rollback` 与全部写代理）。写路径为 `ctx.push(undoOp{...})`；**无** `AddUndo`、**无** `player_proxy.go`、**无** 独立 `tx.go`。下文 §2–§13 含早期方案描述，仅供设计史追溯。
 
 ## 1. 目标
 
@@ -14,12 +17,13 @@
 1. **语义**：业务失败时一键回滚，常驻 `Player` 状态与请求前一致；成功时变更保留且无数据拷贝。
 2. **性能**：相对「每次请求对整棵 `Player` 做 k8s `deepcopy-gen` 全量深拷贝后在副本上稀疏写」，在 CPU、`allocs/op` 上具备明显优势（中等体量夹具）。
 
-## 2. 非目标（MVP 不做）
+## 2. 非目标
 
 - 并发安全、`Mutex`、多 goroutine 共享同一 `TxContext`。
-- 代码生成写代理（本期手写三个方法）；Slice `Set` 代理。
-- `package main` 演示程序；集成具体宿主（Actor/HTTP）。
 - 恢复旧版 Session/COW、路径拷贝、overlay 等方案。
+- Session / Savepoint 封装（仍由宿主用 `Reset`/`Rollback` 组合）。
+
+**已实现（原设计「后续」项）：** `undoproxy-gen` 写代理（含 Slice `Set*`）、`examples/gamestore` 接入示例。
 
 ## 3. 方案选择
 
@@ -117,7 +121,7 @@ type TxContext struct {
 
 - `sync.Pool`：`New` 返回 `undoLogs` 容量 16 的 `*TxContext`。
 - **无 Mutex**（单协程前提）。
-- 误用约定：同一 scope 内 `Rollback` 后不再 `AddUndo`；MVP 不封装 Session 类型，由调用方保证。
+- 误用约定：同一 scope 内 `Rollback` 后不再 `AddUndo`；不封装 Session 类型，由调用方保证。
 
 ## 8. 写代理 API
 
@@ -128,7 +132,7 @@ type TxContext struct {
 | `GetHeroForWrite(ctx)` | `old := Hero`；`Hero = old.Clone()` | `Hero = old` |
 
 - 所有写作用于**常驻** `Player` 指针。
-- `GetHeroForWrite`：测试夹具保证 `Hero != nil`；nil 行为不在 MVP 范围定义。
+- `GetHeroForWrite`：测试夹具保证 `Hero != nil`；nil 行为不在当前设计范围定义。
 
 ## 9. 测试
 
@@ -186,7 +190,7 @@ go test -bench=. -benchmem ./...
 | `package main` + `main()` | 仅 `*_test.go` |
 | 手写 DeepCopy 基线 | `deepcopy-gen` 生成并**提交** |
 | 示例小对象 | B 档 ~100 / ~500 |
-| Slice `Set` | MVP 省略 |
+| Slice `Set` | 当时未实现（现已由代码生成提供） |
 
 ## 12. 验收标准
 
@@ -196,7 +200,7 @@ go test -bench=. -benchmem ./...
 - [ ] `zz_generated.deepcopy.go` 已提交且与 `types.go` 一致。
 - [ ] 代码注释为中文；符合 `AGENTS.md` 行数约束。
 
-## 13. 后续（非 MVP）
+## 13. 后续（非目标）
 
 - 写代理代码生成（类似 k8s Deepcopy 心智模型）。
 - 结构化 Undo、Savepoint、更大夹具 benchmark 归档。

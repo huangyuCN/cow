@@ -5,7 +5,7 @@
 | 状态 | 已实现（2026-05-25） |
 | 模块 | `github.com/huangyuCN/cow` |
 | 需求来源 | 用户：构造 ~1MB 游戏向 `Player`，验证 `undoproxy-gen` 完整性，对比全量 `DeepCopy` |
-| 前置 | [undoproxy-codegen-design.md](./2026-05-25-undoproxy-codegen-design.md)、[cow-undo-log-mvp-design.md](./2026-05-25-cow-undo-log-mvp-design.md) |
+| 前置 | [undoproxy-codegen-design.md](./2026-05-25-undoproxy-codegen-design.md)、[cow-undo-log-design.md](./2026-05-25-cow-undo-log-design.md) |
 
 ## 1. 目标
 
@@ -87,7 +87,7 @@ func TestMegaFixtureSize(t *testing.T) {
 
 `Player` 保持唯一 `// +cow:undoproxy-gen=true` 根；子 struct 由可达性纳入生成图。
 
-### 5.2 初版规模常量（可调）
+### 5.2 默认规模常量（可调）
 
 | 常量 | 初值 | 说明 |
 |------|------|------|
@@ -110,7 +110,7 @@ func TestMegaFixtureSize(t *testing.T) {
 
 ### 5.3 Lite 构造（不变语义）
 
-`newBenchPlayer()`：**仅**填充 `Uid`、`Assets`（~100）、`Items`（~500）、`Hero`；mega 字段保持 `nil`。保证现有 MVP 测试与 B 档 Benchmark 耗时不变。
+`newBenchPlayer()`：**仅**填充 `Uid`、`Assets`（~100）、`Items`（~500）、`Hero`；mega 字段保持 `nil`。保证现有 lite 测试与 B 档 Benchmark 耗时不变。
 
 ## 6. 正确性测试
 
@@ -217,5 +217,5 @@ go test -bench='BenchmarkMega_|BenchmarkUndoLog|BenchmarkDeepCopyGen' -benchmem 
 ## 10. 参考
 
 - [2026-05-25-undoproxy-codegen-design.md](./2026-05-25-undoproxy-codegen-design.md)
-- [cow-undo-log-mvp-benchmark.md](../benchmarks/cow-undo-log-mvp-benchmark.md)
+- [cow-undo-log-benchmark.md](../benchmarks/cow-undo-log-benchmark.md)
 - [docs/guide/overview.md](../../guide/overview.md) — 性能目标背景

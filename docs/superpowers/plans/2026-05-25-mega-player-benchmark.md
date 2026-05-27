@@ -1,5 +1,7 @@
 # Mega Player 夹具与 Benchmark 实现计划
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 扩展游戏向 `Player`（堆约 1MB）、双档夹具、全覆盖探针与 mega Benchmark，验证 `undoproxy-gen` 在复杂嵌套下的正确性，并对比 `deepcopy-gen` 全量拷贝性能。

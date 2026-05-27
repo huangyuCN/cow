@@ -1,5 +1,7 @@
 # undorewrite 历史裸写改写实现计划
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现 `cmd/undorewrite` 与 `internal/cowproxy`，将监控类型裸写批量改为 `undoproxy-gen` 代理调用；默认 dry-run，改写后通过 `cowbarewrite` vet。

@@ -1,5 +1,7 @@
 # 项目文档体系 Implementation Plan
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 建立根 README、`docs/guide` 集成手册、`docs/toolchain` + `cmd/*/README` 维护文档；补充 `Example` 测试；删除临时草稿并修复 superpowers 中的死链引用。
@@ -24,7 +26,7 @@
 | 创建 | `doc_examples_test.go`（`func Example*`） |
 | 修改 | `doc.go` |
 | 修改 | 若干 `docs/superpowers/specs/*.md`（需求来源行，Task 8） |
-| 删除 | `MVP_REQUIREMENTS.md`、`new.md`、`save_historey.md` |
+| 删除 | `需求草稿.md（已删除）`、`new.md`、`save_historey.md` |
 
 ---
 
@@ -100,7 +102,7 @@ git commit -m "test: 为文档补充 ExampleTxContext 与 ExamplePlayer"
 
 **Files:**
 - Create: `README.md`
-- 参考提炼: `MVP_REQUIREMENTS.md` §问题描述 / §PRD 背景（删除前阅读一次）
+- 参考提炼: `需求草稿.md（已删除）` §问题描述 / §PRD 背景（删除前阅读一次）
 
 - [ ] **Step 1: 写入 `README.md`**
 
@@ -132,7 +134,7 @@ go vet -vettool=$(go env GOPATH)/bin/undocheck ./...
 
 - [ ] **Step 2: 人工检查**
 
-打开 `README.md`，确认无链接到 `MVP_REQUIREMENTS.md` / `new.md` / `save_historey.md`。
+打开 `README.md`，确认无链接到 `需求草稿.md（已删除）` / `new.md` / `save_historey.md`。
 
 - [ ] **Step 3: Commit（可选，用户同意后）**
 
@@ -203,7 +205,7 @@ git commit -m "docs: 添加 docs 总索引"
 - [ ] **Step 2: `docs/guide/overview.md`**
 
 - Undo Log 原理（不拷贝数据，只记录逆操作；成功 `Reset`，失败 `Rollback`）
-- 与 DeepCopy 对比：嵌入 benchmark 摘要表（摘自 [cow-undo-log-mvp-benchmark.md](../superpowers/benchmarks/cow-undo-log-mvp-benchmark.md)：`Rollback` ~114 ns/op vs `DeepCopyGen` ~9961 ns/op，勿复制全文）
+- 与 DeepCopy 对比：嵌入 benchmark 摘要表（摘自 [cow-undo-log-benchmark.md](../superpowers/benchmarks/cow-undo-log-benchmark.md)：`Rollback` ~114 ns/op vs `DeepCopyGen` ~9961 ns/op，勿复制全文）
 - 链 [mega benchmark](../superpowers/benchmarks/cow-mega-player-benchmark.md) 可选一句
 - deepcopy-gen **仅 benchmark 基线**（运行路径不用请求级 DeepCopy）
 
@@ -282,7 +284,7 @@ Checkbox 列表：
 
 ```bash
 cd /Users/huangyu/work/golang/src/cow
-for f in docs/guide/*.md; do grep -l 'MVP_REQUIREMENTS\|new\.md\|save_historey' "$f" && exit 1; done
+for f in docs/guide/*.md; do grep -l '需求草稿\|new\.md\|save_historey' "$f" && exit 1; done
 echo "guide links OK"
 ```
 
@@ -323,7 +325,7 @@ Mermaid 或 ASCII 流水线：
 - 根：`// +cow:undoproxy-gen=true` 的 struct
 - 可达：同包内嵌套 struct（与 `cowgen.BuildGraph` 一致）
 - `undocheck` 的 `cowmon.BuildFromSyntax` / `LoadMonitored` 须与生成器同一图
-- 不支持：跨包嵌套字段（初版）、`interface{}`/channel/func 作容器元素
+- 不支持：跨包嵌套字段、`interface{}`/channel/func 作容器元素
 
 - [ ] **Step 3: Commit（可选）**
 
@@ -411,19 +413,19 @@ git commit -m "docs: doc.go 指向 README 与 guide"
 ### Task 8: 删除临时文件并修复 superpowers 引用
 
 **Files:**
-- Delete: `MVP_REQUIREMENTS.md`、`new.md`、`save_historey.md`
+- Delete: `需求草稿.md（已删除）`、`new.md`、`save_historey.md`
 - Modify:
   - `docs/superpowers/specs/2026-05-25-undoproxy-codegen-design.md`
-  - `docs/superpowers/specs/2026-05-25-cow-undo-log-mvp-design.md`
+  - `docs/superpowers/specs/2026-05-25-cow-undo-log-design.md`
   - `docs/superpowers/specs/2026-05-25-undorewrite-codemod-design.md`
   - `docs/superpowers/specs/2026-05-25-bare-write-guard-design.md`
   - `docs/superpowers/specs/2026-05-25-mega-player-benchmark-design.md`
   - `docs/superpowers/plans/2026-05-25-undoproxy-codegen.md`（注释中的 `new.md`）
-  - `docs/superpowers/plans/2026-05-25-cow-undo-log-mvp.md`（可选脚注任务删除）
+  - `docs/superpowers/plans/2026-05-25-cow-undo-log.md`（可选脚注任务删除）
 
 - [ ] **Step 1: 批量替换「需求来源」行**
 
-将表格中 `需求来源` 含 `MVP_REQUIREMENTS` / `new.md` / `save_historey` 的行改为：
+将表格中 `需求来源` 含 `需求草稿` / `new.md` / `save_historey` 的行改为：
 
 ```markdown
 | 需求来源 | 已并入 [docs/guide/overview.md](../../guide/overview.md)（2026-05-25） |
@@ -443,13 +445,13 @@ git commit -m "docs: doc.go 指向 README 与 guide"
 - [ ] **Step 3: 删除三个临时文件**
 
 ```bash
-rm MVP_REQUIREMENTS.md new.md save_historey.md
+rm 需求草稿.md（已删除） new.md save_historey.md
 ```
 
 - [ ] **Step 4: 全库 grep 验收**
 
 ```bash
-git grep -E 'MVP_REQUIREMENTS|save_historey|new\.md' -- ':!docs/superpowers/specs/2026-05-25-project-documentation-design.md' || true
+git grep -E '需求草稿|save_historey|new\.md' -- ':!docs/superpowers/specs/2026-05-25-project-documentation-design.md' || true
 ```
 
 Expected: 仅剩 project-documentation-design.md 中**描述删除动作**的提及；其余为 0。

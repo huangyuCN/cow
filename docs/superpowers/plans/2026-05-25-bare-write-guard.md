@@ -1,5 +1,7 @@
 # 裸写防护（undocheck）实现计划
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现 `cmd/undocheck` 分析器 `cowbarewrite`，在编译前禁止对 undoproxy 监控类型裸写；修复本仓库违规；CI 接入 `go vet`。

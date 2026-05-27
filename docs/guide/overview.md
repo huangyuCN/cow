@@ -1,10 +1,20 @@
 # 架构概览
 
+## 当前实现要点
+
+| 项 | 说明 |
+|---|---|
+| 代码生成 | `undoproxy-gen` → 单文件 `zz_generated.undo_proxy.go` |
+| 运行时 | `TxContext`、`undoOp`、`Rollback`、`txPool` 与全部 `Put*` / `Get*ForWrite` **均在生成文件内** |
+| Undo 机制 | 写路径 `ctx.push(undoOp{kind:...})`；**无** `AddUndo`、**无** 独立 `player_proxy.go` |
+| 多根类型 | 同包内多个 `// +cow:undoproxy-gen=true` 根 struct |
+| 示例 | [examples/gamestore/README.md](../../examples/gamestore/README.md) |
+
 ## Undo Log 原理
 
-cow 在**单协程串行**前提下，对聚合根的每次写通过生成代理注册 **逆操作闭包** 到 `TxContext`：
+cow 在**单协程串行**前提下，对聚合根的每次写通过生成代理向 `TxContext` **push 结构化 `undoOp`**：
 
-- **失败**：`Rollback()` 倒序执行闭包，恢复现场；不拷贝整棵聚合根。
+- **失败**：`Rollback()` 按 `undoKind` 倒序恢复现场；不拷贝整棵聚合根。
 - **成功**：`Reset()` 仅清空日志切片，变更保留在聚合根上。
 
 ```mermaid
@@ -15,7 +25,7 @@ sequenceDiagram
 
   Host->>Ctx: Get + Reset
   Host->>Root: Put* / Append* / Get*ForWrite
-  Note over Ctx: AddUndo(逆操作)
+  Note over Ctx: push(undoOp)
   alt 业务失败
     Host->>Ctx: Rollback
   else 业务成功
@@ -30,15 +40,15 @@ sequenceDiagram
 
 ### Lite 夹具（`newBenchPlayer`，~100 assets / ~500 items）
 
-摘自 [cow-undo-log-mvp-benchmark.md](../superpowers/benchmarks/cow-undo-log-mvp-benchmark.md)：
+摘自 [cow-undo-log-benchmark.md](../superpowers/benchmarks/cow-undo-log-benchmark.md)：
 
 | Benchmark | ns/op | allocs/op |
 |-----------|------:|----------:|
-| `BenchmarkUndoLog_SparseWrite_Rollback` | **114** | **5** |
-| `BenchmarkUndoLog_SparseWrite_Commit` | 1,176 | 6 |
-| `BenchmarkDeepCopyGen_SparseWrite`（基线） | 9,961 | 508 |
+| `BenchmarkUndoLog_SparseWrite_Rollback` | **~87** | **2** |
+| `BenchmarkUndoLog_SparseWrite_Commit` | **~670–790** | **3** |
+| `BenchmarkDeepCopyGen_SparseWrite`（基线） | ~10k | ~511 |
 
-Rollback 路径相对全量 DeepCopy 稀疏写约 **87×** 更快、**~102×** 更少分配（同文档 `benchstat` 结论）。
+Rollback 路径相对全量 DeepCopy 稀疏写约 **两个数量级**更快、分配少两个数量级以上（详见归档文档 `benchstat`）。
 
 ### Mega 夹具（~1MiB 级 `Player`）
 

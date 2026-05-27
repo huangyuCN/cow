@@ -1,5 +1,7 @@
 # undoproxy-gen 结构化 Undo 通用化实现计划
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将 `undoproxy-gen` 改为仅依赖 `cowgen.FieldPlan.Kind` 的结构化 Undo 生成，支持任意/多根 `+cow:undoproxy-gen`，一次移除 `Player` 硬编码与 `AddUndo` 闭包双轨。
@@ -279,7 +281,7 @@ func TestGenerate_NoAddUndo_DualRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := readFile(t, out)
-	for _, bad := range []string{"AddUndo(", "V2", "undoKindClosure"} {
+	for _, bad := range []string{"AddUndo(", "undoKindClosure"} {
 		if strings.Contains(s, bad) {
 			t.Fatalf("generated contains %q", bad)
 		}
@@ -355,7 +357,7 @@ GOCACHE=/tmp/go-cache go test -run '^$' \
   -benchmem -benchtime=1s . 2>&1 | tee /tmp/bench-structured-generic.txt
 ```
 
-与 `docs/superpowers/benchmarks/cow-undo-log-mvp-benchmark.md` 最近结构化条目对比；若任一项回退 >5%，优化热点 Kind 模板后再测。
+与 `docs/superpowers/benchmarks/cow-undo-log-benchmark.md` 最近结构化条目对比；若任一项回退 >5%，优化热点 Kind 模板后再测。
 
 - [ ] **Step 2: 更新文档**
 
@@ -376,7 +378,7 @@ Expected：仅 `emit.go` 历史删除后无命中；benchmark 文档可有历史
 ## Task 8: 最终验收清单（对照 spec §8）
 
 - [ ] `go test ./...` 绿
-- [ ] 生成文件无 `AddUndo`、无 `V2`
+- [ ] 生成文件无 `AddUndo`、无版本后缀
 - [ ] 双根 testdata 生成含 `Room`/`Player`（及可选 `Account`）方法
 - [ ] `zz_generated.undo_proxy.go` 仅一份 `TxContext`/`txPool`
 - [ ] 文档已更新

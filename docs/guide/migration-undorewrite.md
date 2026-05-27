@@ -42,7 +42,7 @@ undorewrite -inject-ctx=pool -pool-var=txPool -w ./yourpkg/...
 go vet -vettool=$(go env GOPATH)/bin/undocheck ./yourpkg/...
 ```
 
-## 边界（v1）
+## 能力边界
 
 - 不改写 `zz_generated*`、`*_fixture.go` 等（与 `undocheck` 白名单一致）。
 - 不处理 `json.Unmarshal` / 反射写。

@@ -1,16 +1,18 @@
-# COW Undo Log MVP Implementation Plan
+# COW Undo Log Implementation Plan
+
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在根包 `cow` 实现 Undo Log 写代理与 `TxContext`，通过测试验证回滚/提交语义，并用 Benchmark 证明相对 `deepcopy-gen` 全量深拷贝在中等 `Player` 稀疏写下具备明显性能优势。
 
-**Architecture:** 单协程下对常驻 `Player` 的每次写注册逆操作闭包；失败倒序 `Rollback`，成功仅 `Reset` 清空 log。对照组每次请求 `DeepCopy()` 整图后在副本上直接改字段。
+**Architecture（现行）：** 单协程下对常驻聚合根的每次写经生成代理 `push(undoOp)`；失败 `Rollback`，成功 `Reset`。对照组为每请求 `DeepCopy()` 整图后直接改字段。下文步骤含早期闭包方案示例，仅供档案。
 
 **Tech Stack:** Go 1.25、`sync.Pool`、`k8s.io/code-generator/cmd/deepcopy-gen`、`k8s.io/apimachinery/pkg/runtime`、`github.com/google/go-cmp/cmp`
 
 **工作目录:** 在当前仓库根目录开发（`AGENTS.md` 禁止 git worktree）。
 
-**设计说明:** `docs/superpowers/specs/2026-05-25-cow-undo-log-mvp-design.md`
+**设计说明:** `docs/superpowers/specs/2026-05-25-cow-undo-log-design.md`
 
 ---
 
@@ -49,7 +51,7 @@ go get k8s.io/apimachinery/pkg/runtime@v0.32.3
 - [ ] **Step 2: 创建 `doc.go`**
 
 ```go
-// Package cow 提供单协程聚合根 Undo Log 写代理（MVP 验证）。
+// Package cow 提供单协程聚合根 Undo Log 写代理（）。
 //
 // +k8s:deepcopy-gen=package
 // +groupName=cow.huanghaiyu.cn
@@ -61,7 +63,7 @@ package cow
 ```go
 package cow
 
-// Item 模拟背包条目（标签兼容 PB/BSON，MVP 不序列化）。
+// Item 模拟背包条目（标签兼容 PB/BSON，运行路径不依赖序列化）。
 type Item struct {
 	Id   int64  `protobuf:"varint,1,opt,name=id" json:"id,omitempty" bson:"_id"`
 	Name string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty" bson:"name"`
@@ -103,7 +105,7 @@ go build ./...
 ```bash
 git add go.mod go.sum doc.go types.go
 git commit -m "$(cat <<'EOF'
-chore(cow): 添加 Undo Log MVP 类型骨架与模块依赖
+chore(cow): 添加 Undo Log 类型骨架与模块依赖
 
 EOF
 )"
@@ -592,7 +594,7 @@ go install golang.org/x/perf/cmd/benchstat@latest
 benchstat /tmp/cow-bench-new.txt
 ```
 
-在 PR/回复中用 Markdown 表格汇报 `ns/op`、`allocs/op`，并**询问用户**是否归档到 `docs/superpowers/benchmarks/cow-undo-log-mvp-benchmark.md`。
+在 PR/回复中用 Markdown 表格汇报 `ns/op`、`allocs/op`，并**询问用户**是否归档到 `docs/superpowers/benchmarks/cow-undo-log-benchmark.md`。
 
 - [ ] **Step 4: Commit**
 
@@ -661,7 +663,7 @@ git status
 
 ## 执行方式
 
-Plan 已保存至 `docs/superpowers/plans/2026-05-25-cow-undo-log-mvp.md`。
+Plan 已保存至 `docs/superpowers/plans/2026-05-25-cow-undo-log.md`。
 
 **两种执行方式：**
 

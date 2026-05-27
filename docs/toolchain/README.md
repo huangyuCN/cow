@@ -34,5 +34,6 @@ types.go (+cow:undoproxy-gen)
 | 主题 | spec |
 |------|------|
 | 代码生成 | [undoproxy-codegen-design.md](../superpowers/specs/2026-05-25-undoproxy-codegen-design.md) |
+| 结构化 Undo 通用化 | [undoproxy-gen-structured-generic-design.md](../superpowers/specs/2026-05-26-undoproxy-gen-structured-generic-design.md) |
 | 裸写检查 | [bare-write-guard-design.md](../superpowers/specs/2026-05-25-bare-write-guard-design.md) |
 | 存量改写 | [undorewrite-codemod-design.md](../superpowers/specs/2026-05-25-undorewrite-codemod-design.md) |

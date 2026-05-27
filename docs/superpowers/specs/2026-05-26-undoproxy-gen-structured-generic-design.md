@@ -2,10 +2,11 @@
 
 | 项 | 值 |
 |---|---|
-| 状态 | 已批准（brainstorming 2026-05-26；方案 2，**一次到位**，不分阶段） |
+| 状态 | **已实现**（2026-05-26） |
 | 模块 | `github.com/huangyuCN/cow` / `cmd/undoproxy-gen` |
 | 场景 | **B** 库使用方各自聚合根；**C** 同包多根 `+cow:undoproxy-gen=true` |
-| 前置 | [2026-05-25-undoproxy-codegen-design.md](2026-05-25-undoproxy-codegen-design.md)；当前仓库已去掉 V2 双轨，但保留 `Player`/`Hero` 专用结构化路径 |
+| 前置 | [2026-05-25-undoproxy-codegen-design.md](2026-05-25-undoproxy-codegen-design.md) |
+| 现行文档 | [docs/guide/codegen-undoproxy.md](../../guide/codegen-undoproxy.md) |
 
 ## 1. 问题
 
@@ -29,7 +30,7 @@
 
 - 跨包类型图、运行期 `reflect`、按业务语义重命名 API。
 - 按类型拆多个生成文件（仍单文件 `zz_generated.undo_proxy.go`）。
-- 为「瘦身」删除 `docs/superpowers/benchmarks/` 历史 V1/V2 对比段落（可后续单独整理）。
+- 为「瘦身」删除 `docs/superpowers/benchmarks/` 历史实现对比 对比段落（可后续单独整理）。
 
 ## 4. 方案选择
 
@@ -147,7 +148,7 @@ type undoOp struct {
 | # | 验收项 |
 |---|--------|
 | 1 | `go test ./...` 全绿 |
-| 2 | `cmd/undoproxy-gen` 新增/更新 testdata：**双根**（如 `Player` + `Account`）黄金生成或片段断言：无 `undoKindPlayer` 前缀（除非类型名确为 Player）、无 `AddUndo`、无 `V2` |
+| 2 | `cmd/undoproxy-gen` 新增/更新 testdata：**双根**（如 `Player` + `Account`）黄金生成或片段断言：无 `undoKindPlayer` 前缀（除非类型名确为 Player）、无 `AddUndo`、无版本后缀 |
 | 3 | 本仓 `Player` mega/lite 功能测试与 benchmark 通过；相对最近结构化归档 ns/op、allocs/op **无 >5% 回退**（同机 `benchstat` 对比，结果记入回复或 benchmark 日志，经用户确认是否归档） |
 | 4 | 生成文件内 `TxContext`/`txPool` 仅出现一份 |
 | 5 | `docs/guide/codegen-undoproxy.md`、`tx-context.md` 更新：结构化路径对**任意 tag 根**生效；移除「仅 Player 热点」表述 |
@@ -178,4 +179,4 @@ type undoOp struct {
 
 - [2026-05-25-undoproxy-codegen-design.md](2026-05-25-undoproxy-codegen-design.md)
 - 现实现：`cmd/undoproxy-gen/emit.go`、`emit_structured_*.go`
-- Benchmark：`docs/superpowers/benchmarks/cow-undo-log-mvp-benchmark.md`、`cow-mega-player-benchmark.md`
+- Benchmark：`docs/superpowers/benchmarks/cow-undo-log-benchmark.md`、`cow-mega-player-benchmark.md`

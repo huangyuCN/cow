@@ -24,7 +24,7 @@ type Player struct { ... }
 | 裸写检测 | `cmd/undocheck` | AST + `MonitoredSet` |
 | 改写目录 | `internal/cowproxy` | 与生成器共享字段分类的 `RewriteCatalog` |
 
-## 不支持（初版）
+## 不支持
 
 - 跨包嵌套 struct 作为字段类型
 - `interface{}`、channel、func 作为 map 值或 slice 元素

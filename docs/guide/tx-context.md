@@ -71,7 +71,7 @@ func runScopedWithRollback(p *Player, fn func(ctx *TxContext) error) error {
 - **Q：成功路径为何还要 `Reset()`？**  
   A：避免 `undoOp` 持有指针/slice/map 引用导致泄漏；并复用 `ops` 切片容量。
 - **Q：能否多个聚合根共用一个 `TxContext`？**  
-  A：MVP 按单聚合根设计；多根需自行划分作用域或扩展。
+  A：当前按单聚合根作用域设计；多根需自行划分作用域或扩展。
 
 ## 相关链接
 

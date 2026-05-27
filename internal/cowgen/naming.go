@@ -1,6 +1,6 @@
 package cowgen
 
-// Singular 将字段名复数形式转为单数（初版：末尾 s 去掉）。
+// Singular 将字段名复数形式转为单数（当前实现：末尾 s 去掉）。
 func Singular(field string) string {
 	if len(field) > 1 && field[len(field)-1] == 's' {
 		return field[:len(field)-1]

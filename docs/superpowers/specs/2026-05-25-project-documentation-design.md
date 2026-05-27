@@ -14,7 +14,7 @@
 1. 理解 **cow 解决什么问题、能力边界、如何使用**（根 `README.md`）。
 2. 按功能查阅 **集成指南**（`docs/guide/`，每功能有示例与边界说明）。
 3. 理解 **工具链实现与维护**（`docs/toolchain/` + `cmd/*/README.md`）。
-4. 清理 **`MVP_REQUIREMENTS.md`、`new.md`、`save_historey.md`**，避免与正式文档并存或交叉引用。
+4. 清理 **`需求草稿.md（已删除）`、`new.md`、`save_historey.md`**，避免与正式文档并存或交叉引用。
 
 ## 2. 非目标
 
@@ -81,7 +81,7 @@ cmd/
 6. **文档地图**：`docs/guide/`、`docs/toolchain/`、`cmd/`、`docs/superpowers/benchmarks/`。
 7. **许可**（`LICENSE`）。
 
-内容从 `MVP_REQUIREMENTS.md` **提炼**；不保留 PRD 模板代码块。
+内容从 `需求草稿.md（已删除）` **提炼**；不保留 PRD 模板代码块。
 
 ## 6. `docs/guide/` 功能目录
 
@@ -143,7 +143,7 @@ cmd/
 
 | 文件 | 动作 |
 |------|------|
-| `MVP_REQUIREMENTS.md` | 删除；痛点/前提迁入 `README.md`、`docs/guide/overview.md` |
+| `需求草稿.md（已删除）` | 删除；痛点/前提迁入 `README.md`、`docs/guide/overview.md` |
 | `new.md` | 删除；内容已由 superpowers spec 覆盖 |
 | `save_historey.md` | 删除 |
 | 全库引用 | 实施时 `grep` 三文件名并改为正式文档链接或删除「需求来源」行 |
@@ -152,7 +152,7 @@ cmd/
 
 ### 8.1 已有 superpowers spec 的「需求来源」
 
-将指向 `MVP_REQUIREMENTS.md` / `new.md` 的行改为：
+将指向 `需求草稿.md（已删除）` / `new.md` 的行改为：
 
 - `docs/guide/overview.md`，或
 - 「需求已并入项目文档（2026-05-25）」
@@ -179,7 +179,7 @@ cmd/
 1. 根目录存在 `README.md`，含 §5 全部章节。
 2. `docs/README.md`、`docs/guide/`（§6 所列文件）、`docs/toolchain/README.md`（及 `type-graph.md`）存在且互相链接正确。
 3. `cmd/undoproxy-gen`、`cmd/undocheck`、`cmd/undorewrite` 各有 `README.md`。
-4. `MVP_REQUIREMENTS.md`、`new.md`、`save_historey.md` 已删除；`git grep` 无引用。
+4. `需求草稿.md（已删除）`、`new.md`、`save_historey.md` 已删除；`git grep` 无引用。
 5. 至少新增 2 个 `func Example`（`TxContext` 与 `Player` 代理各一），`go test ./...` 通过。
 6. `doc.go` 指向正式文档路径。
 

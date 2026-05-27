@@ -1,5 +1,7 @@
 # undoproxy-gen 实现计划
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现 `cmd/undoproxy-gen`，对带 `+cow:undoproxy-gen=true` 的聚合根及同包可达嵌套类型生成 `zz_generated.undo_proxy.go`（Put/Append/Set/Remove/Truncate/Get*ForWrite/CloneForWrite），覆盖嵌套 map/slice，并替换手写 `player_proxy.go`。
@@ -31,7 +33,7 @@
 | `undo_proxy_generate.go` | 新建：go:generate |
 | `zz_generated.undo_proxy.go` | 生成并提交 |
 | `player_proxy.go` | **删除** |
-| `player_test.go` | 修改：仍测 MVP 三写；新增嵌套/ slice 删截断 |
+| `player_test.go` | 修改：仍测三处稀疏写；新增嵌套/ slice 删截断 |
 | `undoproxy_nested_test.go` | 新建：map[k][]、map[k]map 回滚用例 |
 | `go.mod` | 修改：添加 `golang.org/x/tools` |
 
@@ -180,7 +182,7 @@ go test ./cmd/undoproxy-gen/ -run 'TestSingular|TestMethodNames' -count=1
 
 `graph_test.go` 使用内联 `types.Type` 构造或加载 `testdata`（Task 5 前可用最小 struct 字段列表 mock）。
 
-初版断言（伪代码，实现时用 `go/types`）：
+初始断言（伪代码，实现时用 `go/types`）：
 
 - `Assets map[string]int64` → `MapScalar`
 - `Items []*Item` → `SlicePtr`

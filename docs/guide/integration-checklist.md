@@ -6,7 +6,7 @@
 
 - [ ] 聚合根已标记 `// +cow:undoproxy-gen=true`
 - [ ] 已添加 `//go:generate undoproxy-gen ...` 并执行 `go generate ./...`
-- [ ] `zz_generated.undo_proxy.go` 已提交版本库
+- [ ] `zz_generated.undo_proxy.go` 已提交版本库（内含 `TxContext` / `Rollback`，无 `AddUndo`）
 - [ ] 嵌套 struct 与根类型在**同一包**（或确认未使用跨包嵌套字段）
 
 ## 运行时写路径

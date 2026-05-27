@@ -2,12 +2,17 @@
 
 ## 概述
 
-`undoproxy-gen` 为带标记的类型生成 `Put*` / `Append*` / `Get*ForWrite` 等写代理，输出 `zz_generated.undo_proxy.go`。
+`undoproxy-gen` 为带标记的类型生成 `Put*` / `Append*` / `Get*ForWrite` 等写代理，输出 **单个** `zz_generated.undo_proxy.go`。该文件同时包含：
+
+- `TxContext`、`undoOp`、`Rollback`、`Reset`、`txPool`
+- 所有根类型与可达嵌套类型的写代理
+
+业务包**不需要**也不应再维护独立的 `tx.go` 或手写代理文件。
 
 ## 前置条件
 
 - Go 1.25+
-- 聚合根与嵌套 struct 在**同一包**内（初版限制）
+- 聚合根与嵌套 struct 在**同一包**内（当前版本限制）
 
 ## 步骤
 

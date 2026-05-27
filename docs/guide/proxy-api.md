@@ -41,7 +41,7 @@ if h != nil {
 }
 ```
 
-`map[K]*Struct` 形如 `GetSkillForWrite(ctx, k)`（见 `zz_generated.undo_proxy.go`）。
+`map[K]*Struct` 在 map 元素类型上生成，例如 `h := player.GetHeroForWrite(ctx, heroID)` 后 `h.GetSkillForWrite(ctx, skillID)`（见 `zz_generated.undo_proxy.go`）。
 
 ## CloneForWrite
 

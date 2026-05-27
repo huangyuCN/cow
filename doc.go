@@ -1,4 +1,4 @@
-// Package cow 提供单协程聚合根 Undo Log 写代理（MVP 验证）。
+// Package cow 提供单协程聚合根 Undo Log 写代理。
 //
 // 裸写静态检查（需先安装分析器）：
 //

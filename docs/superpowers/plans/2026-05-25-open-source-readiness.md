@@ -1,5 +1,7 @@
 # 开源就绪 Implementation Plan
 
+> **状态：已实现**（截至 2026-05-27；本计划为历史执行记录，勿按未勾选步骤重复开发）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 完成首次 GitHub 公开前的工程与社区就绪项（CI、`go.mod` 清理、贡献/安全文档、`docs/README` 贡献者路径），满足 [开源就绪设计 spec](../specs/2026-05-25-open-source-readiness-design.md) 的 P0/P1 验收。
@@ -346,7 +348,7 @@ git commit -m "docs: README 文档表区分集成方与维护者"
 - [ ] **Step 1: 草稿与禁止路径检查**
 
 ```bash
-git grep -E 'MVP_REQUIREMENTS|save_historey' -- ':!docs/superpowers/plans/2026-05-25-open-source-readiness.md' ':!docs/superpowers/specs/2026-05-25-open-source-readiness-design.md' ':!docs/superpowers/specs/2026-05-25-project-documentation-design.md' ':!docs/superpowers/plans/2026-05-25-project-documentation.md' && exit 1 || echo "OK: 无生产代码/ guide 引用草稿文件名"
+git grep -E 'save_historey|new\.md' -- ':!docs/superpowers/plans/2026-05-25-open-source-readiness.md' ':!docs/superpowers/specs/2026-05-25-open-source-readiness-design.md' ':!docs/superpowers/specs/2026-05-25-project-documentation-design.md' ':!docs/superpowers/plans/2026-05-25-project-documentation.md' && exit 1 || echo "OK: 无生产代码/ guide 引用草稿文件名"
 ```
 
 说明：允许设计/plan 文档自身提到这些文件名；`docs/guide/` 与 `*.go` 中不应出现。
@@ -354,7 +356,7 @@ git grep -E 'MVP_REQUIREMENTS|save_historey' -- ':!docs/superpowers/plans/2026-0
 - [ ] **Step 2: 确认 guide 无草稿引用**
 
 ```bash
-git grep -E 'MVP_REQUIREMENTS|save_historey|new\.md' -- docs/guide/ && exit 1 || echo "OK"
+git grep -E '需求草稿|save_historey|new\.md' -- docs/guide/ && exit 1 || echo "OK"
 ```
 
 - [ ] **Step 3: 测试 + vet**
@@ -384,7 +386,7 @@ git push -u origin HEAD
 - [ ] **Step 2: 打 tag**
 
 ```bash
-git tag -a v0.1.0 -m "首版开源：Undo Log 写代理 MVP + undoproxy-gen / undocheck / undorewrite"
+git tag -a v0.1.0 -m "首版开源：Undo Log 写代理 + undoproxy-gen / undocheck / undorewrite"
 git push origin v0.1.0
 ```
 

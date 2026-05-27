@@ -1,6 +1,6 @@
 package cow
 
-// Item 模拟背包条目（标签兼容 PB/BSON，MVP 不序列化）。
+// Item 模拟背包条目（标签兼容 PB/BSON；运行路径不依赖序列化）。
 //
 // +k8s:deepcopy-gen=true
 type Item struct {

@@ -17,7 +17,7 @@
 
 - 不提供 `TxContext` 并发安全。
 - 不提供运行期裸写检测（仅静态分析器 `undocheck` / `cowbarewrite`）。
-- `undoproxy-gen` 初版仅支持 **同包** 类型图；容器元素不支持 `interface{}`、channel、func。
+- `undoproxy-gen` 仅支持 **同包** 类型图；容器元素不支持 `interface{}`、channel、func。
 - 不捆绑具体 Actor / HTTP / 消息框架；文档提供接入模式，由宿主嵌入。
 
 ## 快速开始
