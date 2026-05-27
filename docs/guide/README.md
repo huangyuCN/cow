@@ -13,4 +13,4 @@
 | [integration-checklist.md](integration-checklist.md) | 接入检查清单 |
 | [limitations.md](limitations.md) | 非目标与 serde 约定 |
 
-示例代码以仓库内 `*_test.go` 与 `func Example*` 为准（`go test` 校验）。
+示例代码以仓库内 `*_test.go` 与 `func Example*` 为准（`go test` 校验）。完整独立接入示例见 [examples/gamestore/README.md](../../examples/gamestore/README.md)。

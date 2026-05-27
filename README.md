@@ -53,6 +53,10 @@ player.PutAssets(ctx, "gold", 500)
 
 成功提交：业务无错时 `ctx.Reset()` 清空日志即可（见 [docs/guide/tx-context.md](docs/guide/tx-context.md)）。
 
+## 完整接入示例
+
+独立 module 演示（自有聚合根、`go generate`、Rollback/Commit）：[examples/gamestore/README.md](examples/gamestore/README.md)。
+
 ## 文档
 
 | 文档 | 说明 |
