@@ -23,14 +23,27 @@ func (s *MonitoredSet) ContainsName(name string) bool {
 	return false
 }
 
-// Contains 判断类型是否为监控 struct（含 *T），按类型对象身份匹配。
+// Contains 判断类型是否为监控 struct（含 *T）。
+// 优先按 *types.TypeName 对象身份匹配；若来自另一轮 packages.Load（对象不同、包路径与类型名相同），按路径+名称回退匹配。
 func (s *MonitoredSet) Contains(t types.Type) bool {
 	named := namedStruct(t)
 	if named == nil {
 		return false
 	}
-	_, ok := s.byObj[named.Obj()]
-	return ok
+	obj := named.Obj()
+	if _, ok := s.byObj[obj]; ok {
+		return true
+	}
+	if obj.Pkg() == nil {
+		return false
+	}
+	path, name := obj.Pkg().Path(), obj.Name()
+	for k := range s.byObj {
+		if k.Pkg() != nil && k.Pkg().Path() == path && k.Name() == name {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadMonitored 加载包并构建监控类型集合。
