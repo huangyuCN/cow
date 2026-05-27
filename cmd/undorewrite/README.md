@@ -4,7 +4,7 @@
 
 ## 职责
 
-扫描指定路径下 Go 源码，将监控类型上的**裸写**改为 `undoproxy-gen` 生成的代理调用。默认 **dry-run**；`-w` 写回。使用 `go/types` + `internal/cowproxy` 目录，与生成器字段分类一致。
+扫描指定路径下 Go 源码，将监控类型上的**裸写**改为 `undoproxy-gen` 生成的代理调用。默认 **dry-run**；`-w` 写回。对每个含 `+cow:undoproxy-gen` 的包，用**该包**类型图构建监控集与改写目录；若包仍 import cow 且无本地标记根，则回退到 `-cow` 目录。`*TxContext` 识别与 `-inject-ctx` 生成代码使用正在改写的包内类型。
 
 ## 能力边界
 
@@ -20,7 +20,7 @@ go install ./cmd/undorewrite
 undorewrite [flags] ./patterns...
 
 # flags（见 main.go）
-#   -cow string      cow 模块 import path（默认 github.com/huangyuCN/cow）
+#   -cow string      仍 import cow 类型时的 catalog 回退路径（默认 github.com/huangyuCN/cow）
 #   -w               写回源文件
 #   -ctx string      TxContext 变量名（默认 ctx）
 #   -inject-ctx      new | pool | param:NAME
@@ -52,4 +52,5 @@ go vet -vettool=$(go env GOPATH)/bin/undocheck ./yourpkg/...
 ## 相关链接
 
 - 设计：[docs/superpowers/specs/2026-05-25-undorewrite-codemod-design.md](../../docs/superpowers/specs/2026-05-25-undorewrite-codemod-design.md)
+- 独立接入：[docs/superpowers/specs/2026-05-27-undorewrite-consumer-alignment-design.md](../../docs/superpowers/specs/2026-05-27-undorewrite-consumer-alignment-design.md)
 - 守门：[cmd/undocheck/README.md](../undocheck/README.md)

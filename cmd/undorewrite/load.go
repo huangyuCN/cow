@@ -9,24 +9,52 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// packageEnv 保存单包改写所需的监控集与改写目录。
+type packageEnv struct {
+	Mon       *cowmon.MonitoredSet
+	Catalog   *cowproxy.RewriteCatalog
+	TxPkgPath string // *TxContext 所属包路径
+}
+
 type workspace struct {
 	Fset      *token.FileSet
 	Pkgs      []*packages.Package
-	Mon       *cowmon.MonitoredSet
-	Catalog   *cowproxy.RewriteCatalog
+	ByPath    map[string]*packageEnv
 	CowImport string
-	CowName   string // 本地 import 名，默认 cow
+	CowName   string // 默认 import 名 cow
+}
+
+func (ws *workspace) envForPkgPath(path string) (*packageEnv, bool) {
+	env, ok := ws.ByPath[path]
+	return env, ok
+}
+
+func resolvePackageEnv(pkg *packages.Package, cowImport string) (*packageEnv, error) {
+	if pkg.Types == nil || len(pkg.Syntax) == 0 {
+		return nil, fmt.Errorf("package %s missing types", pkg.PkgPath)
+	}
+	if mon, err := cowmon.BuildFromSyntax(pkg.Types, pkg.Syntax); err == nil {
+		cat, err := cowproxy.NewCatalog(pkg.PkgPath)
+		if err != nil {
+			return nil, err
+		}
+		return &packageEnv{Mon: mon, Catalog: cat, TxPkgPath: pkg.PkgPath}, nil
+	}
+	if cowmon.Imports(pkg.Types, cowImport) {
+		mon, err := cowmon.LoadMonitored(cowImport)
+		if err != nil {
+			return nil, err
+		}
+		cat, err := cowproxy.NewCatalog(cowImport)
+		if err != nil {
+			return nil, err
+		}
+		return &packageEnv{Mon: mon, Catalog: cat, TxPkgPath: cowImport}, nil
+	}
+	return nil, nil
 }
 
 func loadWorkspace(cfg Config, patterns []string) (*workspace, error) {
-	mon, err := cowmon.LoadMonitored(cfg.CowImport)
-	if err != nil {
-		return nil, err
-	}
-	cat, err := cowproxy.NewCatalog(cfg.CowImport)
-	if err != nil {
-		return nil, err
-	}
 	mode := packages.NeedName | packages.NeedImports | packages.NeedSyntax |
 		packages.NeedTypes | packages.NeedTypesInfo | packages.NeedModule
 	fset := token.NewFileSet()
@@ -40,10 +68,21 @@ func loadWorkspace(cfg Config, patterns []string) (*workspace, error) {
 	ws := &workspace{
 		Fset:      fset,
 		Pkgs:      pkgs,
-		Mon:       mon,
-		Catalog:   cat,
+		ByPath:    make(map[string]*packageEnv),
 		CowImport: cfg.CowImport,
 		CowName:   "cow",
+	}
+	for _, pkg := range pkgs {
+		if pkg.PkgPath == "" || len(pkg.Errors) > 0 {
+			continue
+		}
+		env, err := resolvePackageEnv(pkg, cfg.CowImport)
+		if err != nil {
+			return nil, err
+		}
+		if env != nil {
+			ws.ByPath[pkg.PkgPath] = env
+		}
 	}
 	return ws, nil
 }

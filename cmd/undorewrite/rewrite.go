@@ -22,13 +22,16 @@ func Run(cfg Config, patterns []string) (*Result, error) {
 	}
 	res := &Result{}
 	for _, pkg := range ws.Pkgs {
+		env, ok := ws.envForPkgPath(pkg.PkgPath)
+		if !ok {
+			continue
+		}
 		for _, f := range pkg.Syntax {
 			path := ws.Fset.File(f.Pos()).Name()
 			if cowfile.SkipFile(path) {
 				continue
 			}
-			cowName := ws.cowPkgName(pkg)
-			fileRes := rewriteFile(ws, pkg, f, cowName, cfg)
+			fileRes := rewriteFile(ws, pkg, f, env, cfg)
 			res.Errors = append(res.Errors, fileRes.errs...)
 			res.SkippedFuncs += fileRes.skipped
 			if fileRes.changed {
@@ -73,17 +76,18 @@ func (c catalogAdapter) Lookup(structName, fieldName string) (fieldMethods, bool
 	}, true
 }
 
-func rewriteFile(ws *workspace, pkg *packages.Package, f *ast.File, cowName string, cfg Config) fileRewriteResult {
+func rewriteFile(ws *workspace, pkg *packages.Package, f *ast.File, env *packageEnv, cfg Config) fileRewriteResult {
 	info := pkg.TypesInfo
-	cat := catalogAdapter{ws.Catalog}
+	cat := catalogAdapter{env.Catalog}
 	out := fileRewriteResult{before: formatFile(ws.Fset, f)}
+	cowLocal := ws.cowPkgName(pkg)
 
 	for _, decl := range f.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Body == nil || cowfile.AllowBareWrite(fn.Doc) {
 			continue
 		}
-		ctxRes := resolveCtx(fn, info, ws.CowImport, cfg.CtxName, cfg.InjectCtx, cfg.PoolVar)
+		ctxRes := resolveCtx(fn, info, env.TxPkgPath, cfg.CtxName, cfg.InjectCtx, cfg.PoolVar, ws.CowImport, cowLocal)
 		if ctxRes.Skipped {
 			out.skipped++
 			out.errs = append(out.errs, fmt.Sprintf("%s: 缺少 TxContext", ws.Fset.Position(fn.Pos())))
@@ -96,11 +100,11 @@ func rewriteFile(ws *workspace, pkg *packages.Package, f *ast.File, cowName stri
 		ast.Inspect(fn.Body, func(n ast.Node) bool {
 			switch s := n.(type) {
 			case *ast.AssignStmt:
-				if nr, ok := rewriteAssign(s, info, ws.Mon, cat, ctxRes.Expr); ok {
+				if nr, ok := rewriteAssign(s, info, env.Mon, cat, ctxRes.Expr); ok {
 					reps = append(reps, stmtReplace{old: s, new: nr})
 				}
 			case *ast.IncDecStmt:
-				if nr, ok := rewriteIncDec(s, info, ws.Mon, cat, ctxRes.Expr); ok {
+				if nr, ok := rewriteIncDec(s, info, env.Mon, cat, ctxRes.Expr); ok {
 					reps = append(reps, stmtReplace{old: s, new: nr})
 				}
 			}

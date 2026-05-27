@@ -37,17 +37,8 @@ func monitoredForPass(pass *analysis.Pass) (*cowmon.MonitoredSet, error) {
 	if set, err := cowmon.BuildFromSyntax(pass.Pkg, pass.Files); err == nil {
 		return set, nil
 	}
-	if importsCow(pass) {
+	if cowmon.Imports(pass.Pkg, cowImportPath) {
 		return cowmon.LoadMonitored(cowImportPath)
 	}
 	return nil, nil
-}
-
-func importsCow(pass *analysis.Pass) bool {
-	for _, imp := range pass.Pkg.Imports() {
-		if imp.Path() == cowImportPath {
-			return true
-		}
-	}
-	return false
 }
