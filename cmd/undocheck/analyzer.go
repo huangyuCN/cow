@@ -34,11 +34,24 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 func monitoredForPass(pass *analysis.Pass) (*cowmon.MonitoredSet, error) {
+	var sets []*cowmon.MonitoredSet
 	if set, err := cowmon.BuildFromSyntax(pass.Pkg, pass.Files); err == nil {
-		return set, nil
+		sets = append(sets, set)
 	}
-	if cowmon.Imports(pass.Pkg, cowImportPath) {
-		return cowmon.LoadMonitored(cowImportPath)
+	srcDir, _ := testdataSrcDir(pass)
+	for _, imp := range pass.Pkg.Imports() {
+		if imp == nil {
+			continue
+		}
+		path := imp.Path()
+		if path == "" || path == pass.Pkg.Path() {
+			continue
+		}
+		set, err := cowmon.LoadMonitoredCached(path, srcDir)
+		if err != nil {
+			continue
+		}
+		sets = append(sets, set)
 	}
-	return nil, nil
+	return cowmon.Union(sets...), nil
 }

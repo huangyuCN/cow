@@ -9,8 +9,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-const cowImportPath = "github.com/huangyuCN/cow"
-
 const specDoc = "docs/superpowers/specs/2026-05-25-bare-write-guard-design.md"
 
 func inspectFile(pass *analysis.Pass, f *ast.File, mon *cowmon.MonitoredSet) {

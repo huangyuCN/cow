@@ -21,7 +21,7 @@ go vet -vettool=$(go env GOPATH)/bin/undocheck ./...
 go vet -cowbarewrite ./...
 ```
 
-跨模块：消费方仓库 import 你的 `Player` 时，须在其 CI 同样安装 `undocheck` 并对**自身** `./...` 跑 vet。
+跨模块 / 多包：消费方在业务包中 **直接 import** 带 `+cow:undoproxy-gen=true` 的定义包（如 `yourgame/model`）时，须在其 CI 安装 `undocheck` 并对**自身** `./...` 跑 vet；**不必**再 import `github.com/huangyuCN/cow` 根模块。须为**直接**依赖（传递依赖不查）。
 
 ## 何为裸写
 
@@ -34,7 +34,7 @@ go vet -cowbarewrite ./...
 | `//cow:allow-bare-write` | 行级放行 |
 | `internal/cowfile.SkipFile` | 跳过 `zz_generated*`、`*_fixture.go`、`cmd/undoproxy-gen/**` 等 |
 
-好坏例源码：`cmd/undocheck/testdata/src/barewrite/`。
+好坏例源码：`cmd/undocheck/testdata/src/barewrite/`、`importscope/consumer/`（跨包 import）。
 
 ## 示例诊断
 

@@ -98,6 +98,7 @@ flowchart LR
 ### 6.3 检查范围
 
 - **凡 import 并使用受监控类型的包**均参与分析（不仅限「业务包」目录名）。
+- **实现**：按直接 import 加载定义包类型图，见 [2026-06-02-undocheck-import-scope-design.md](2026-06-02-undocheck-import-scope-design.md)。
 - 类型定义文件 `types.go`：仅 struct 定义与 tag，无赋值则自然通过；若有赋值应迁至 `*_fixture.go`。
 
 ## 7. 与初始化、序列化
