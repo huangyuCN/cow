@@ -361,19 +361,26 @@ func emitStructuredMapMapGetForWrite(b *bytes.Buffer, ub *undoBuilder, structNam
 	fmt.Fprintf(b, "\t\tctx.push(undoOp{kind: %s, %s, keyI32: k1, had2: !existed})\n", kindOuter, ub.recvArg(structName, r))
 	fmt.Fprintf(b, "\t\t%s[k1] = newInner\n", acc)
 	fmt.Fprintf(b, "\t\treturn newInner\n\t}\n")
-	fmt.Fprintf(b, "\tdirty := clone%sMapShallow(oldInner)\n", plan.FieldName)
+	name := cloneMapShallowFuncName(plan.Keys[1].KeyType, innerValueType(plan))
+	fmt.Fprintf(b, "\tdirty := %s(oldInner)\n", name)
 	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, keyI32: k1, innerMapOld: oldInner, had: true})\n", kindInner, ub.recvArg(structName, r))
 	fmt.Fprintf(b, "\t%s[k1] = dirty\n", acc)
 	fmt.Fprintf(b, "\treturn dirty\n}\n\n")
-	emitCloneMapShallow(b, plan)
+	emitCloneMapShallow(b, ub, plan)
 }
 
-func emitCloneMapShallow(b *bytes.Buffer, plan cowgen.FieldPlan) {
-	fmt.Fprintf(b, "func clone%sMapShallow(m map[%s]%s) map[%s]%s {\n",
-		plan.FieldName, plan.Keys[1].KeyType, innerValueType(plan),
-		plan.Keys[1].KeyType, innerValueType(plan))
+func emitCloneMapShallow(b *bytes.Buffer, ub *undoBuilder, plan cowgen.FieldPlan) {
+	keyType := plan.Keys[1].KeyType
+	elemType := innerValueType(plan)
+	name := cloneMapShallowFuncName(keyType, elemType)
+	if _, ok := ub.cloneHelpers[name]; ok {
+		return
+	}
+	ub.cloneHelpers[name] = struct{}{}
+	fmt.Fprintf(b, "func %s(m map[%s]%s) map[%s]%s {\n",
+		name, keyType, elemType, keyType, elemType)
 	b.WriteString("\tif m == nil {\n\t\treturn nil\n\t}\n")
-	fmt.Fprintf(b, "\tc := make(map[%s]%s, len(m))\n", plan.Keys[1].KeyType, innerValueType(plan))
+	fmt.Fprintf(b, "\tc := make(map[%s]%s, len(m))\n", keyType, elemType)
 	b.WriteString("\tfor k, v := range m {\n\t\tc[k] = v\n\t}\n")
 	b.WriteString("\treturn c\n}\n\n")
 }

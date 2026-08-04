@@ -106,3 +106,23 @@ func mapKeyField(keyType string) string {
 		return "keyString"
 	}
 }
+
+func sanitizeIdent(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	out := b.String()
+	if out == "" || (out[0] >= '0' && out[0] <= '9') {
+		return "T" + out
+	}
+	return out
+}
+
+func cloneMapShallowFuncName(keyType, elemType string) string {
+	return "cloneMapShallow_" + sanitizeIdent(keyType) + "_" + sanitizeIdent(elemType)
+}

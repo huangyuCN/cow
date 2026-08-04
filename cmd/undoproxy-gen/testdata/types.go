@@ -43,3 +43,17 @@ type EquipBack struct {
 	Equips Equips
 	Spares ItemList
 }
+
+type Condition struct {
+	Val int64
+}
+
+// +cow:undoproxy-gen=true
+type Alpha struct {
+	Conditions map[int32]map[string]*Condition
+}
+
+// +cow:undoproxy-gen=true
+type Beta struct {
+	Conditions map[int32]map[string]*Condition
+}

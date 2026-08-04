@@ -19,7 +19,7 @@ func TestRun_GeneratesStructuredUndoProxy(t *testing.T) {
 	}
 	s := string(b)
 	required := []string{
-		"type undoKind uint8",
+		"type undoKind uint16",
 		"type undoOp struct",
 		"type TxContext struct",
 		"func (ctx *TxContext) push",

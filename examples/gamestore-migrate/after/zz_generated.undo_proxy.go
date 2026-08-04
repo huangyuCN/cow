@@ -4,7 +4,7 @@ package aftershop
 
 import "sync"
 
-type undoKind uint8
+type undoKind uint16
 
 const (
 	undoKindHeroLevelScalarSet undoKind = iota + 1
@@ -13,10 +13,12 @@ const (
 	undoKindPlayerGoldScalarSet
 	undoKindPlayerWalletMapKeySet
 	undoKindPlayerWalletMapEnsureNil
+	undoKindPlayerWalletMapKeyRemove
 	undoKindPlayerItemsSliceTruncate
 	undoKindPlayerItemsSliceSetAt
 	undoKindPlayerItemsSliceRestore
 	undoKindPlayerMainHeroPtrReplace
+	undoKindPlayerMainHeroPtrSet
 )
 
 type undoOp struct {
@@ -26,13 +28,13 @@ type undoOp struct {
 	player    *Player
 	keyI32    int32
 	keyI64    int64
+	keyU32    uint32
 	keyU64    uint64
 	keyString string
 
+	oldInt    int
 	oldI32    int32
 	oldI64    int64
-	oldU64    uint64
-	oldInt    int
 	oldString string
 
 	snapItem []*Item
@@ -86,6 +88,8 @@ func (ctx *TxContext) Rollback() {
 			}
 		case undoKindPlayerWalletMapEnsureNil:
 			op.player.Wallet = nil
+		case undoKindPlayerWalletMapKeyRemove:
+			op.player.Wallet[op.keyString] = op.oldI64
 		case undoKindPlayerItemsSliceTruncate:
 			op.player.Items = op.player.Items[:op.oldInt]
 		case undoKindPlayerItemsSliceSetAt:
@@ -93,6 +97,8 @@ func (ctx *TxContext) Rollback() {
 		case undoKindPlayerItemsSliceRestore:
 			op.player.Items = append([]*Item(nil), op.snapItem...)
 		case undoKindPlayerMainHeroPtrReplace:
+			op.player.MainHero = op.hero
+		case undoKindPlayerMainHeroPtrSet:
 			op.player.MainHero = op.hero
 		}
 	}
@@ -166,6 +172,18 @@ func (p *Player) PutWallet(ctx *TxContext, k1 string, val int64) {
 	ctx.push(undoOp{kind: undoKindPlayerWalletMapKeySet, player: p, keyString: k1, oldI64: old, had: existed})
 }
 
+func (p *Player) RemoveWallet(ctx *TxContext, k1 string) {
+	if p.Wallet == nil {
+		return
+	}
+	old, existed := p.Wallet[k1]
+	if !existed {
+		return
+	}
+	delete(p.Wallet, k1)
+	ctx.push(undoOp{kind: undoKindPlayerWalletMapKeyRemove, player: p, keyString: k1, oldI64: old, had: true})
+}
+
 func (p *Player) AppendItems(ctx *TxContext, elem *Item) {
 	oldLen := len(p.Items)
 	p.Items = append(p.Items, elem)
@@ -203,4 +221,10 @@ func (p *Player) GetMainHeroForWrite(ctx *TxContext) *Hero {
 	ctx.push(undoOp{kind: undoKindPlayerMainHeroPtrReplace, player: p, hero: old})
 	p.MainHero = dirty
 	return dirty
+}
+
+func (p *Player) SetMainHero(ctx *TxContext, val *Hero) {
+	old := p.MainHero
+	p.MainHero = val
+	ctx.push(undoOp{kind: undoKindPlayerMainHeroPtrSet, player: p, hero: old})
 }

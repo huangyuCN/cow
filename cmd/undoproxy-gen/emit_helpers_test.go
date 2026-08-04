@@ -19,3 +19,26 @@ func TestTruncateLenParamName_avoidsReceiverShadow(t *testing.T) {
 		t.Fatalf("got %q want n", got)
 	}
 }
+
+func TestSanitizeIdent(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"string", "string"},
+		{"*Condition", "_Condition"},
+		{"", "T"},
+		{"[]byte", "__byte"},
+		{"1bad", "T1bad"},
+	}
+	for _, tc := range cases {
+		if got := sanitizeIdent(tc.in); got != tc.want {
+			t.Fatalf("sanitizeIdent(%q)=%q want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestCloneMapShallowFuncName(t *testing.T) {
+	got := cloneMapShallowFuncName("string", "*Condition")
+	want := "cloneMapShallow_string__Condition"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}

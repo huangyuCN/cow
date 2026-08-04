@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strings"
 	"unicode"
 
@@ -21,7 +22,8 @@ type undoBuilder struct {
 	kindIndex    map[string]string
 	sliceSnaps   map[string]string // slice 元素类型 -> undoOp 字段名
 	scalarOlds   map[string]string // 标量类型字符串 -> undoOp 旧值字段名
-	innerMapSnap bool              // 是否需要 statsOld map[string]int64
+	cloneHelpers map[string]struct{} // 已发出的浅拷贝 helper 名（按 map 签名去重）
+	innerMapSnap bool                // 是否需要 statsOld map[string]int64
 }
 
 func newUndoBuilder(g *cowgen.Graph) *undoBuilder {
@@ -36,10 +38,11 @@ func newUndoBuilder(g *cowgen.Graph) *undoBuilder {
 		names = append(names, n)
 	}
 	ub := &undoBuilder{
-		structs:    names,
-		kindIndex:  make(map[string]string),
-		sliceSnaps: make(map[string]string),
-		scalarOlds: make(map[string]string),
+		structs:      names,
+		kindIndex:    make(map[string]string),
+		sliceSnaps:   make(map[string]string),
+		scalarOlds:   make(map[string]string),
+		cloneHelpers: make(map[string]struct{}),
 	}
 	// slice 下标/长度与标量 int 共用（生成代码中大量 oldInt: i / oldInt: oldLen）
 	ub.scalarOlds["int"] = "oldInt"
@@ -183,8 +186,26 @@ func scalarOldNameFromType(goType string) string {
 	return b.String()
 }
 
-func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
-	b.WriteString("type undoKind uint8\n\nconst (\n")
+// checkUndoKindCount 校验 undoKind 数量是否落在 uint16 可表示范围内。
+func checkUndoKindCount(n int) error {
+	if n > math.MaxUint16 {
+		return fmt.Errorf("undoKind count %d exceeds uint16 max %d", n, math.MaxUint16)
+	}
+	return nil
+}
+
+func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) error {
+	if err := checkUndoKindCount(len(ub.entries)); err != nil {
+		return err
+	}
+	ub.writeUndoKindConsts(b)
+	ub.writeUndoOpStruct(b)
+	ub.writeTxContextRuntime(b)
+	return nil
+}
+
+func (ub *undoBuilder) writeUndoKindConsts(b *bytes.Buffer) {
+	b.WriteString("type undoKind uint16\n\nconst (\n")
 	for i, e := range ub.entries {
 		if i == 0 {
 			fmt.Fprintf(b, "\t%s undoKind = iota + 1\n", e.name)
@@ -193,7 +214,9 @@ func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
 		}
 	}
 	b.WriteString(")\n\n")
+}
 
+func (ub *undoBuilder) writeUndoOpStruct(b *bytes.Buffer) {
 	b.WriteString("type undoOp struct {\n\tkind undoKind\n")
 	for _, sn := range ub.structs {
 		fmt.Fprintf(b, "\t%s *%s\n", recvLower(sn), sn)
@@ -218,7 +241,9 @@ func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
 	b.WriteString("\thad  bool\n")
 	b.WriteString("\thad2 bool\n")
 	b.WriteString("}\n\n")
+}
 
+func (ub *undoBuilder) writeTxContextRuntime(b *bytes.Buffer) {
 	b.WriteString("// TxContext 单次请求作用域的 Undo 日志（单协程，无锁）。\n")
 	b.WriteString("//\n")
 	b.WriteString("// +k8s:deepcopy-gen=false\n")
@@ -238,6 +263,10 @@ func (ub *undoBuilder) writeRuntime(b *bytes.Buffer) {
 	b.WriteString("\t\treturn &TxContext{ops: make([]undoOp, 0, 16)}\n")
 	b.WriteString("\t},\n")
 	b.WriteString("}\n\n")
+	ub.writeRollback(b)
+}
+
+func (ub *undoBuilder) writeRollback(b *bytes.Buffer) {
 	b.WriteString("// Rollback 倒序执行所有逆操作。\n")
 	b.WriteString("func (ctx *TxContext) Rollback() {\n")
 	b.WriteString("\tfor i := len(ctx.ops) - 1; i >= 0; i-- {\n")

@@ -27,6 +27,12 @@
 | [../cmd/undocheck/README.md](../cmd/undocheck/README.md) | 裸写分析器 `cowbarewrite` |
 | [../cmd/undorewrite/README.md](../cmd/undorewrite/README.md) | 存量 AST 改写 |
 
+## PRD
+
+[prd/](prd/) — 面向实现的产品需求（验收标准 + 改动清单）。当前无开放 PRD。
+
+相关设计见：[undoproxy-gen 大规模类型图可编译性](superpowers/specs/2026-08-04-undoproxy-gen-scalable-codegen-design.md)（已实现）。
+
 ## 设计与 benchmark
 
 [superpowers/](superpowers/) — 设计 spec、实现 plan、经归档的 benchmark 日志。

@@ -15,7 +15,9 @@ func TestUndoBuilder_ScalarOldField_float32(t *testing.T) {
 		t.Fatalf("scalarOldField(float32)=%q want oldF32", got)
 	}
 	var buf bytes.Buffer
-	ub.writeRuntime(&buf)
+	if err := ub.writeRuntime(&buf); err != nil {
+		t.Fatal(err)
+	}
 	out := buf.String()
 	if !strings.Contains(out, "oldF32 float32") {
 		t.Fatalf("writeRuntime missing oldF32 field:\n%s", out)

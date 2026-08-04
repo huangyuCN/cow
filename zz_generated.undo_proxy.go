@@ -4,7 +4,7 @@ package cow
 
 import "sync"
 
-type undoKind uint8
+type undoKind uint16
 
 const (
 	undoKindHeroHeroIdScalarSet undoKind = iota + 1
@@ -662,13 +662,13 @@ func (p *Player) GetStatsMapForWrite(ctx *TxContext, k1 int32) map[string]int64 
 		p.Stats[k1] = newInner
 		return newInner
 	}
-	dirty := cloneStatsMapShallow(oldInner)
+	dirty := cloneMapShallow_string_int64(oldInner)
 	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerReplace, player: p, keyI32: k1, innerMapOld: oldInner, had: true})
 	p.Stats[k1] = dirty
 	return dirty
 }
 
-func cloneStatsMapShallow(m map[string]int64) map[string]int64 {
+func cloneMapShallow_string_int64(m map[string]int64) map[string]int64 {
 	if m == nil {
 		return nil
 	}

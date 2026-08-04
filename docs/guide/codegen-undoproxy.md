@@ -59,6 +59,8 @@ go generate ./...
 - 与 `TxContext`、`undoOp`、`Rollback` 一并写入 `zz_generated.undo_proxy.go`（按类型图裁剪字段）。
 - 支持同包内**多个** `// +cow:undoproxy-gen=true` 根类型。
 - 跨包嵌套字段、反射动态类型不在生成范围。
+- 生成运行时 `undoKind` 为 `uint16`；超过 65535 种操作时生成失败。
+- 内层 map 浅拷贝 helper 名为 `cloneMapShallow_{Key}_{Elem}`（例如 `cloneMapShallow_string_int64`；指针元素如 `*Condition` 经 sanitize 后为 `cloneMapShallow_string__Condition`），按类型签名在单文件内只定义一次。
 
 ## 相关链接
 
