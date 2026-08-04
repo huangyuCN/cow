@@ -44,3 +44,17 @@ func TestMapRemoveName(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestMapKeyGetForWriteName_UsesField(t *testing.T) {
+	cases := []struct{ field, want string }{
+		{"Heros", "GetHerosForWrite"},
+		{"VirtualStackable", "GetVirtualStackableForWrite"},
+		{"Stackable", "GetStackableForWrite"},
+		{"Skills", "GetSkillsForWrite"},
+	}
+	for _, tc := range cases {
+		if got := cowgen.MapKeyGetForWriteName(tc.field); got != tc.want {
+			t.Fatalf("MapKeyGetForWriteName(%q)=%q want %q", tc.field, got, tc.want)
+		}
+	}
+}

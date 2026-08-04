@@ -151,13 +151,13 @@ func assertMegaProbeCommit(t *testing.T, p *Player) {
 		t.Fatal("PutCooldowns not committed")
 	}
 	if m := p.Mails[1]; m == nil || m.Subject != "probe_mail" {
-		t.Fatal("GetMailForWrite not committed")
+		t.Fatal("GetMailsForWrite not committed")
 	}
 	if p.Mails[2] == nil || p.Mails[2].Subject != "put_mail" {
 		t.Fatal("PutMails not committed")
 	}
 	if q := p.Quests[1]; q == nil || q.State != 9 {
-		t.Fatal("GetQuestForWrite not committed")
+		t.Fatal("GetQuestsForWrite not committed")
 	}
 	if p.Quests[2] == nil || p.Quests[2].State != 8 {
 		t.Fatal("PutQuests not committed")

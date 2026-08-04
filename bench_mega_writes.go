@@ -6,7 +6,7 @@ const megaSparseWriteCount = 32
 // applyMegaSparseWrites 模拟一次请求的稀疏写（约 6 处 Undo，与历史 mega Benchmark 同源）。
 func applyMegaSparseWrites(p *Player, ctx *TxContext) {
 	p.PutAssets(ctx, "gold", 500)
-	h := p.GetHeroForWrite(ctx, 1)
+	h := p.GetHerosForWrite(ctx, 1)
 	if h != nil {
 		h.PutLevel(ctx, 99)
 	}
@@ -42,7 +42,7 @@ func applyMegaSparseWrites32(p *Player, ctx *TxContext) {
 		mh.PutLevel(ctx, 88)
 	}
 	// Heros（map 指针）
-	if h := p.GetHeroForWrite(ctx, 1); h != nil {
+	if h := p.GetHerosForWrite(ctx, 1); h != nil {
 		h.PutLevel(ctx, 99)
 	}
 	p.PutHeros(ctx, 99, newTestHeroProbe99())
@@ -66,12 +66,12 @@ func applyMegaSparseWrites32(p *Player, ctx *TxContext) {
 	p.PutCooldowns(ctx, 2, []int32{1, 2, 3})
 	p.AppendCooldownsAt(ctx, 3, 300)
 	// Mails（map 指针）
-	if m := p.GetMailForWrite(ctx, 1); m != nil {
+	if m := p.GetMailsForWrite(ctx, 1); m != nil {
 		m.PutSubject(ctx, "sub32")
 	}
 	p.PutMails(ctx, 2, newTestMailPut())
 	// Quests（map 指针）
-	if q := p.GetQuestForWrite(ctx, 1); q != nil {
+	if q := p.GetQuestsForWrite(ctx, 1); q != nil {
 		q.PutState(ctx, 9)
 	}
 	p.PutQuests(ctx, 2, newTestQuestPut())
@@ -89,7 +89,7 @@ func applyMegaProxyProbeFull(p *Player, ctx *TxContext) {
 		mh.PutLevel(ctx, 99)
 	}
 	// map[k]*Struct
-	if h := p.GetHeroForWrite(ctx, 1); h != nil {
+	if h := p.GetHerosForWrite(ctx, 1); h != nil {
 		h.PutLevel(ctx, 11)
 	}
 	p.PutHeros(ctx, 99, newTestHeroProbe99())
@@ -137,11 +137,11 @@ func applyMegaProxyProbeFull(p *Player, ctx *TxContext) {
 	}
 	p.PutCooldowns(ctx, 4, []int32{1, 2, 3})
 	// map[k]*Mail / *Quest
-	if m := p.GetMailForWrite(ctx, 1); m != nil {
+	if m := p.GetMailsForWrite(ctx, 1); m != nil {
 		m.PutSubject(ctx, "probe_mail")
 	}
 	p.PutMails(ctx, 2, newTestMailPut())
-	if q := p.GetQuestForWrite(ctx, 1); q != nil {
+	if q := p.GetQuestsForWrite(ctx, 1); q != nil {
 		q.PutState(ctx, 9)
 	}
 	p.PutQuests(ctx, 2, newTestQuestPut())

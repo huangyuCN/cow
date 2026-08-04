@@ -117,8 +117,8 @@ func emitStructuredMapPtrGet(b *bytes.Buffer, ub *undoBuilder, structName, r, ac
 	keyField := mapKeyField(plan.Keys[0].KeyType)
 	kind := ub.kind(structName, field, "MapPtrReplace",
 		fmt.Sprintf("op.%s.%s[op.%s] = op.%s", recv, field, keyField, slot))
-	fmt.Fprintf(b, "func (%s *%s) Get%sForWrite(ctx *TxContext, %s) %s {\n",
-		r, structName, plan.ElemName, cowgen.KeyParams(plan.Keys), ret)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s) %s {\n",
+		r, structName, cowgen.MapKeyGetForWriteName(plan.FieldName), cowgen.KeyParams(plan.Keys), ret)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, mapTypeFromPlan(plan))
 	fmt.Fprintf(b, "\told, ok := %s[%s]\n", acc, ka)
 	fmt.Fprintf(b, "\tif !ok || old == nil {\n\t\treturn nil\n\t}\n")
@@ -392,8 +392,8 @@ func emitStructuredMapMapPtrGet(b *bytes.Buffer, ub *undoBuilder, structName, r,
 	recv := recvLower(structName)
 	kind := ub.kind(structName, field, "MapMapPtrReplace",
 		fmt.Sprintf("op.%s.%s[op.keyI32][op.keyString] = op.%s", recv, field, slot))
-	fmt.Fprintf(b, "func (%s *%s) Get%sForWrite(ctx *TxContext, %s) %s {\n",
-		r, structName, plan.ElemName, ka, plan.LeafType)
+	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s) %s {\n",
+		r, structName, cowgen.MapKeyGetForWriteName(plan.FieldName), ka, plan.LeafType)
 	emitStructuredMapEnsure(b, ub, structName, r, acc, "map["+plan.Keys[0].KeyType+"]"+plan.MapValue)
 	fmt.Fprintf(b, "\tinner := %s[k1]\n", acc)
 	fmt.Fprintf(b, "\tif inner == nil {\n\t\treturn nil\n\t}\n")

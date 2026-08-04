@@ -60,7 +60,7 @@ func methodsFromPlan(plan cowgen.FieldPlan) FieldMethods {
 		fm.MapPutKeyCount = len(plan.Keys)
 		fm.Remove = cowgen.MapRemoveName(plan.FieldName)
 		if plan.Kind == cowgen.KindMapPtrStruct {
-			fm.GetForWrite = cowgen.MapKeyGetForWriteName(plan.ElemName)
+			fm.GetForWrite = cowgen.MapKeyGetForWriteName(plan.FieldName)
 			fm.TargetStruct = plan.ElemName
 		}
 	case cowgen.KindSliceValue, cowgen.KindSlicePtr:
@@ -80,7 +80,8 @@ func methodsFromPlan(plan cowgen.FieldPlan) FieldMethods {
 		fm.Remove = cowgen.MapRemoveName(plan.FieldName)
 		fm.MapForWrite = cowgen.MapForWriteName(plan.FieldName)
 		if plan.Kind == cowgen.KindMapMapPtrStruct {
-			// 双层 map 的 *Struct 值用 Put 双层键，无单独 Get
+			fm.GetForWrite = cowgen.MapKeyGetForWriteName(plan.FieldName)
+			fm.TargetStruct = plan.ElemName
 		}
 	}
 	return fm

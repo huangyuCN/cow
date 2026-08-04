@@ -323,7 +323,7 @@ func (h *Hero) PutLevel(ctx *TxContext, val int32) {
 	h.Level = val
 }
 
-func (h *Hero) GetSkillForWrite(ctx *TxContext, k1 int32) *Skill {
+func (h *Hero) GetSkillsForWrite(ctx *TxContext, k1 int32) *Skill {
 	if h.Skills == nil {
 		ctx.push(undoOp{kind: undoKindHeroSkillsMapEnsureNil, hero: h})
 		h.Skills = make(map[int32]*Skill)
@@ -522,7 +522,7 @@ func (p *Player) SetMainHero(ctx *TxContext, val *Hero) {
 	ctx.push(undoOp{kind: undoKindPlayerMainHeroPtrSet, player: p, hero: old})
 }
 
-func (p *Player) GetHeroForWrite(ctx *TxContext, k1 int32) *Hero {
+func (p *Player) GetHerosForWrite(ctx *TxContext, k1 int32) *Hero {
 	if p.Heros == nil {
 		ctx.push(undoOp{kind: undoKindPlayerHerosMapEnsureNil, player: p})
 		p.Heros = make(map[int32]*Hero)
@@ -752,7 +752,7 @@ func (p *Player) PutCooldowns(ctx *TxContext, k1 int32, val []int32) {
 	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSlicePut, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
 }
 
-func (p *Player) GetMailForWrite(ctx *TxContext, k1 uint64) *Mail {
+func (p *Player) GetMailsForWrite(ctx *TxContext, k1 uint64) *Mail {
 	if p.Mails == nil {
 		ctx.push(undoOp{kind: undoKindPlayerMailsMapEnsureNil, player: p})
 		p.Mails = make(map[uint64]*Mail)
@@ -792,7 +792,7 @@ func (p *Player) RemoveMails(ctx *TxContext, k1 uint64) {
 	ctx.push(undoOp{kind: undoKindPlayerMailsMapKeyRemove, player: p, keyU64: k1, mail: old, had: true})
 }
 
-func (p *Player) GetQuestForWrite(ctx *TxContext, k1 int32) *Quest {
+func (p *Player) GetQuestsForWrite(ctx *TxContext, k1 int32) *Quest {
 	if p.Quests == nil {
 		ctx.push(undoOp{kind: undoKindPlayerQuestsMapEnsureNil, player: p})
 		p.Quests = make(map[int32]*Quest)

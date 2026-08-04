@@ -13,7 +13,7 @@ func HandlePurchaseSuccess(p *Player, g *Guild, ctx *TxContext) error {
 	if mh := p.GetMainHeroForWrite(ctx); mh != nil {
 		mh.PutLevel(ctx, mh.Level+1)
 	}
-	if h := p.GetHeroForWrite(ctx, 1); h != nil {
+	if h := p.GetHerosForWrite(ctx, 1); h != nil {
 		h.PutLevel(ctx, h.Level+1)
 	}
 	p.PutStats(ctx, 1, "atk", 99)

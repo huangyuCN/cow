@@ -31,7 +31,10 @@
 
 [prd/](prd/) — 面向实现的产品需求（验收标准 + 改动清单）。当前无开放 PRD。
 
-相关设计见：[undoproxy-gen 大规模类型图可编译性](superpowers/specs/2026-08-04-undoproxy-gen-scalable-codegen-design.md)（已实现）。
+相关设计：
+
+- [undoproxy-gen 大规模类型图可编译性](superpowers/specs/2026-08-04-undoproxy-gen-scalable-codegen-design.md)（已实现）
+- [map GetForWrite 按字段名](superpowers/specs/2026-08-04-map-getforwrite-by-field-design.md)（已实现）
 
 ## 设计与 benchmark
 

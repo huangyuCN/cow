@@ -38,9 +38,9 @@ func PtrGetForWriteName(field string) string {
 	return "Get" + field + "ForWrite"
 }
 
-// MapKeyGetForWriteName map[k]*Struct 的 Get 方法名（Heros → GetHeroForWrite）。
-func MapKeyGetForWriteName(singular string) string {
-	return "Get" + singular + "ForWrite"
+// MapKeyGetForWriteName 按字段名生成 map[k]*Struct 的 GetForWrite（Heros → GetHerosForWrite）。
+func MapKeyGetForWriteName(field string) string {
+	return "Get" + field + "ForWrite"
 }
 
 // PutFieldName 标量/map Put 方法名。

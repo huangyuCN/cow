@@ -234,7 +234,7 @@ func (g *Guild) CloneForWrite() *Guild {
 	}
 }
 
-func (g *Guild) GetMemberForWrite(ctx *TxContext, k1 int32) *Member {
+func (g *Guild) GetMembersForWrite(ctx *TxContext, k1 int32) *Member {
 	if g.Members == nil {
 		ctx.push(undoOp{kind: undoKindGuildMembersMapEnsureNil, guild: g})
 		g.Members = make(map[int32]*Member)
@@ -291,7 +291,7 @@ func (h *Hero) PutLevel(ctx *TxContext, val int32) {
 	h.Level = val
 }
 
-func (h *Hero) GetSkillForWrite(ctx *TxContext, k1 int32) *Skill {
+func (h *Hero) GetSkillsForWrite(ctx *TxContext, k1 int32) *Skill {
 	if h.Skills == nil {
 		ctx.push(undoOp{kind: undoKindHeroSkillsMapEnsureNil, hero: h})
 		h.Skills = make(map[int32]*Skill)
@@ -466,7 +466,7 @@ func (p *Player) SetMainHero(ctx *TxContext, val *Hero) {
 	ctx.push(undoOp{kind: undoKindPlayerMainHeroPtrSet, player: p, hero: old})
 }
 
-func (p *Player) GetHeroForWrite(ctx *TxContext, k1 int32) *Hero {
+func (p *Player) GetHerosForWrite(ctx *TxContext, k1 int32) *Hero {
 	if p.Heros == nil {
 		ctx.push(undoOp{kind: undoKindPlayerHerosMapEnsureNil, player: p})
 		p.Heros = make(map[int32]*Hero)

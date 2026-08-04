@@ -62,7 +62,8 @@ if h != nil {
 }
 ```
 
-`map[K]*Struct` 在 map 元素类型上生成，例如 `h := player.GetHeroForWrite(ctx, heroID)` 后 `h.GetSkillForWrite(ctx, skillID)`（见 `zz_generated.undo_proxy.go`）。
+`map[K]*Struct` 按**字段名**生成 `Get{Field}ForWrite`，例如 `player.GetHerosForWrite(ctx, heroID)`，再 `h.GetSkillsForWrite(ctx, skillID)`。  
+**破坏性变更：** 旧 `GetHeroForWrite`（字段 `Heros`）已更名为 `GetHerosForWrite`；同类字段不再用元素类型单数名。
 
 ## CloneForWrite
 

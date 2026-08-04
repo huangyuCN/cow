@@ -24,3 +24,14 @@ func TestCatalog_PlayerMainHero(t *testing.T) {
 		t.Fatalf("Items: %+v", it)
 	}
 }
+
+func TestCatalog_MapPtrGetForWriteUsesField(t *testing.T) {
+	cat, err := cowproxy.NewCatalog("github.com/huangyuCN/cow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, ok := cat.Lookup("Player", "Heros")
+	if !ok || h.GetForWrite != "GetHerosForWrite" {
+		t.Fatalf("Heros: %+v ok=%v", h, ok)
+	}
+}

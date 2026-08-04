@@ -57,3 +57,19 @@ type Alpha struct {
 type Beta struct {
 	Conditions map[int32]map[string]*Condition
 }
+
+type StackableItem struct {
+	Qty int64
+}
+
+// +cow:undoproxy-gen=true
+type Bag struct {
+	Stackable        map[uint64]*StackableItem
+	VirtualStackable map[uint64]*StackableItem
+}
+
+// +cow:undoproxy-gen=true
+type NestBag struct {
+	Primary   map[int32]map[string]*Condition
+	Secondary map[int32]map[string]*Condition
+}
