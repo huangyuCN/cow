@@ -4,10 +4,30 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"github.com/huangyuCN/cow/internal/cowmon"
 	"golang.org/x/tools/go/analysis"
 )
+
+func allowBareWriteAtPos(fset *token.FileSet, f *ast.File, pos token.Pos) bool {
+	if pos == token.NoPos {
+		return false
+	}
+	line := fset.Position(pos).Line
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			cLine := fset.Position(c.Pos()).Line
+			if cLine != line && cLine != line-1 {
+				continue
+			}
+			if strings.Contains(c.Text, "cow:allow-bare-write") {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 const specDoc = "docs/superpowers/specs/2026-05-25-bare-write-guard-design.md"
 
@@ -22,16 +42,19 @@ func inspectFile(pass *analysis.Pass, f *ast.File, mon *cowmon.MonitoredSet) {
 				continue
 			}
 			ast.Inspect(d.Body, func(n ast.Node) bool {
-				inspectStmt(pass, mon, d.Doc, n)
+				inspectStmt(pass, f, mon, n)
 				return true
 			})
 		}
 	}
 }
 
-func inspectStmt(pass *analysis.Pass, mon *cowmon.MonitoredSet, fnDoc *ast.CommentGroup, n ast.Node) {
+func inspectStmt(pass *analysis.Pass, f *ast.File, mon *cowmon.MonitoredSet, n ast.Node) {
 	switch s := n.(type) {
 	case *ast.AssignStmt:
+		if allowBareWriteAtPos(pass.Fset, f, s.Pos()) {
+			return
+		}
 		for i, lhs := range s.Lhs {
 			if i >= len(s.Rhs) {
 				break
@@ -42,20 +65,26 @@ func inspectStmt(pass *analysis.Pass, mon *cowmon.MonitoredSet, fnDoc *ast.Comme
 					kind = writeSliceAppend
 				}
 			}
-			checkExpr(pass, mon, lhs, kind, s.Pos())
+			checkExpr(pass, f, mon, lhs, kind, s.Pos())
 		}
 	case *ast.IncDecStmt:
-		checkExpr(pass, mon, s.X, writeScalar, s.Pos())
+		if allowBareWriteAtPos(pass.Fset, f, s.Pos()) {
+			return
+		}
+		checkExpr(pass, f, mon, s.X, writeScalar, s.Pos())
 	case *ast.CompositeLit:
-		checkComposite(pass, mon, s)
+		checkComposite(pass, f, mon, s)
 	case *ast.CallExpr:
 		if id, ok := s.Fun.(*ast.Ident); ok && id.Name == "delete" && len(s.Args) >= 1 {
-			checkMapDelete(pass, mon, s.Args[0], s.Pos())
+			if allowBareWriteAtPos(pass.Fset, f, s.Pos()) {
+				return
+			}
+			checkMapDelete(pass, f, mon, s.Args[0], s.Pos())
 		}
 	}
 }
 
-func checkMapDelete(pass *analysis.Pass, mon *cowmon.MonitoredSet, mapExpr ast.Expr, pos token.Pos) {
+func checkMapDelete(pass *analysis.Pass, f *ast.File, mon *cowmon.MonitoredSet, mapExpr ast.Expr, pos token.Pos) {
 	tv := pass.TypesInfo.Types[mapExpr]
 	if tv.Type == nil {
 		return
@@ -71,10 +100,10 @@ func checkMapDelete(pass *analysis.Pass, mon *cowmon.MonitoredSet, mapExpr ast.E
 	if field == "" {
 		return
 	}
-	reportBare(pass, root.Obj().Name(), field, writeMapDelete, pos)
+	reportBare(pass, f, root.Obj().Name(), field, writeMapDelete, pos)
 }
 
-func checkComposite(pass *analysis.Pass, mon *cowmon.MonitoredSet, lit *ast.CompositeLit) {
+func checkComposite(pass *analysis.Pass, f *ast.File, mon *cowmon.MonitoredSet, lit *ast.CompositeLit) {
 	tv := pass.TypesInfo.Types[lit]
 	if tv.Type == nil {
 		return
@@ -90,24 +119,30 @@ func checkComposite(pass *analysis.Pass, mon *cowmon.MonitoredSet, lit *ast.Comp
 	for _, elt := range lit.Elts {
 		kv, ok := elt.(*ast.KeyValueExpr)
 		if !ok {
+			if allowBareWriteAtPos(pass.Fset, f, lit.Pos()) {
+				continue
+			}
 			// 非键值形式的位置复合字面量，保守报整个字面量
-			reportBare(pass, named.Obj().Name(), "composite literal", writeScalar, lit.Pos())
+			reportBare(pass, f, named.Obj().Name(), "composite literal", writeScalar, lit.Pos())
 			continue
 		}
 		if key, ok := kv.Key.(*ast.Ident); ok {
 			if structHasField(st, key.Name) {
-				reportBare(pass, named.Obj().Name(), key.Name, writeScalar, kv.Pos())
+				if allowBareWriteAtPos(pass.Fset, f, kv.Pos()) {
+					continue
+				}
+				reportBare(pass, f, named.Obj().Name(), key.Name, writeScalar, kv.Pos())
 			}
 		}
 	}
 }
 
-func checkExpr(pass *analysis.Pass, mon *cowmon.MonitoredSet, expr ast.Expr, kind writeKind, pos token.Pos) {
+func checkExpr(pass *analysis.Pass, f *ast.File, mon *cowmon.MonitoredSet, expr ast.Expr, kind writeKind, pos token.Pos) {
 	field, root, ok := monitoredWriteTarget(pass, expr)
 	if !ok || !mon.Contains(root) {
 		return
 	}
-	reportBare(pass, root.Obj().Name(), field, kind, pos)
+	reportBare(pass, f, root.Obj().Name(), field, kind, pos)
 }
 
 // monitoredWriteTarget 解析写左值：返回字段名与根 struct 类型。
@@ -218,7 +253,10 @@ func structHasField(st *types.Struct, name string) bool {
 	return false
 }
 
-func reportBare(pass *analysis.Pass, typeName, field string, kind writeKind, pos token.Pos) {
+func reportBare(pass *analysis.Pass, f *ast.File, typeName, field string, kind writeKind, pos token.Pos) {
+	if allowBareWriteAtPos(pass.Fset, f, pos) {
+		return
+	}
 	hint := suggestProxy(typeName, field, kind)
 	pass.Reportf(pos, "cowbarewrite: 禁止对 *%s 裸写 %s，请使用 %s（见 %s）", typeName, field, hint, specDoc)
 }
