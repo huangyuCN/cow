@@ -3,6 +3,8 @@ package cowmon
 import (
 	"fmt"
 	"go/types"
+	"slices"
+	"strings"
 )
 
 // MonitoredSet 纳入 bare-write 检查的具名 struct（根类型 BFS 同包可达）。
@@ -88,27 +90,18 @@ func CollectReachable(pkg *PackageInfo) ([]*types.Named, error) {
 		for i := 0; i < st.NumFields(); i++ {
 			refs, err := structRefsInType(st.Field(i).Type(), pkg.Pkg)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("field %s.%s: %w", name, st.Field(i).Name(), err)
 			}
-			for _, ref := range refs {
-				if ref.Obj().Pkg().Path() != pkg.Pkg.Path() {
-					return nil, fmt.Errorf("field %s.%s references external type %s", name, st.Field(i).Name(), ref.Obj().Name())
-				}
-				queue = append(queue, ref)
-			}
+			queue = append(queue, refs...)
 		}
 	}
 	out := make([]*types.Named, 0, len(seen))
 	for _, n := range seen {
 		out = append(out, n)
 	}
-	for i := 0; i < len(out); i++ {
-		for j := i + 1; j < len(out); j++ {
-			if out[i].Obj().Name() > out[j].Obj().Name() {
-				out[i], out[j] = out[j], out[i]
-			}
-		}
-	}
+	slices.SortFunc(out, func(a, b *types.Named) int {
+		return strings.Compare(a.Obj().Name(), b.Obj().Name())
+	})
 	return out, nil
 }
 
@@ -127,7 +120,10 @@ func structRefsInType(t types.Type, pkg *types.Package) ([]*types.Named, error) 
 			}
 			return walk(u.Elem())
 		case *types.Named:
-			if _, ok := u.Underlying().(*types.Struct); ok && u.Obj().Pkg() == pkg {
+			if _, isStruct := u.Underlying().(*types.Struct); isStruct {
+				if u.Obj().Pkg() != pkg {
+					return fmt.Errorf("references external struct type %s", u.String())
+				}
 				refs = append(refs, u)
 				return nil
 			}

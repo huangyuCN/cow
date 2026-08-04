@@ -40,6 +40,6 @@
 
 ## 设计与 benchmark
 
-[superpowers/](superpowers/) — 设计 spec、实现 plan、经归档的 benchmark 日志。
+[superpowers/](superpowers/) — 设计 spec、实现 plan、经归档的 benchmark 日志、代码审计报告（[superpowers/reviews/](superpowers/reviews/)）。
 
 **说明：** 目录名 superpowers 来自内部 Agent 工作流，与 Cursor 插件无运行时依赖；内容为设计决策与性能档案，**集成方不必阅读**。新功能请先查阅是否已有相关 spec。

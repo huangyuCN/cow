@@ -8,13 +8,12 @@ func TestTxContextReset_ClearsUndoOpReferences(t *testing.T) {
 	h := &Hero{}
 	item := &Item{}
 	ctx.push(undoOp{
-		kind:      undoKindPlayerAssetsMapKeySet,
-		player:    p,
-		hero:      h,
+		kind:       undoKindPlayerAssetsMapKeySet,
+		player:     p,
+		hero:       h,
 		key_string: "k",
 		snapItem:   []*Item{item},
 		had:        true,
-		had2:       true,
 		oldI32:     1,
 		oldI64:     2,
 		oldInt:     3,
@@ -39,7 +38,7 @@ func TestTxContextReset_ClearsUndoOpReferences(t *testing.T) {
 		if op.snapItem != nil {
 			t.Fatalf("op slot %d keeps slice snap after reset", i)
 		}
-		if op.had || op.had2 || op.oldI32 != 0 || op.oldI64 != 0 || op.oldInt != 0 {
+		if op.had || op.oldI32 != 0 || op.oldI64 != 0 || op.oldInt != 0 {
 			t.Fatalf("op slot %d should be zero value after reset", i)
 		}
 	}

@@ -41,10 +41,9 @@ const (
 	undoKindPlayerBagsMapSliceRestore
 	undoKindPlayerBagsMapSlicePtrReplace
 	undoKindPlayerBagsMapSlicePut
-	undoKindPlayerStatsMapMapOuterDelete
+	undoKindPlayerStatsMapMapOuterRestore
 	undoKindPlayerStatsMapMapInnerKeySet
 	undoKindPlayerStatsMapEnsureNil
-	undoKindPlayerStatsMapMapOuterRestore
 	undoKindPlayerStatsMapMapInnerReplace
 	undoKindPlayerStatsMapMapInnerKeyRemove
 	undoKindPlayerCooldownsMapSliceAppend
@@ -91,8 +90,7 @@ type undoOp struct {
 	snapint32              []int32
 	inner_map_string_int64 map[string]int64
 
-	had  bool
-	had2 bool
+	had bool
 }
 
 // TxContext 单次请求作用域的 Undo 日志（单协程，无锁）。
@@ -209,8 +207,12 @@ func (ctx *TxContext) Rollback() {
 			} else {
 				delete(op.player.Bags, op.key_int32)
 			}
-		case undoKindPlayerStatsMapMapOuterDelete:
-			delete(op.player.Stats, op.key_int32)
+		case undoKindPlayerStatsMapMapOuterRestore:
+			if op.had {
+				op.player.Stats[op.key_int32] = op.inner_map_string_int64
+			} else {
+				delete(op.player.Stats, op.key_int32)
+			}
 		case undoKindPlayerStatsMapMapInnerKeySet:
 			inner := op.player.Stats[op.key_int32]
 			if op.had {
@@ -220,12 +222,6 @@ func (ctx *TxContext) Rollback() {
 			}
 		case undoKindPlayerStatsMapEnsureNil:
 			op.player.Stats = nil
-		case undoKindPlayerStatsMapMapOuterRestore:
-			if op.had {
-				op.player.Stats[op.key_int32] = op.inner_map_string_int64
-			} else {
-				delete(op.player.Stats, op.key_int32)
-			}
 		case undoKindPlayerStatsMapMapInnerReplace:
 			op.player.Stats[op.key_int32] = op.inner_map_string_int64
 		case undoKindPlayerStatsMapMapInnerKeyRemove:
@@ -491,9 +487,11 @@ func (p *Player) SetItemsAt(ctx *TxContext, i int, elem *Item) {
 
 func (p *Player) RemoveItemsAt(ctx *TxContext, i int) {
 	oldLen := len(p.Items)
-	tail := append([]*Item(nil), p.Items...)
-	p.Items = append(p.Items[:i], p.Items[i+1:]...)
-	ctx.push(undoOp{kind: undoKindPlayerItemsSliceRestore, player: p, snapItem: tail, oldInt: oldLen})
+	snap := append([]*Item(nil), p.Items...)
+	p.Items = make([]*Item, 0, oldLen-1)
+	p.Items = append(p.Items, snap[:i]...)
+	p.Items = append(p.Items, snap[i+1:]...)
+	ctx.push(undoOp{kind: undoKindPlayerItemsSliceRestore, player: p, snapItem: snap, oldInt: oldLen})
 }
 
 func (p *Player) TruncateItems(ctx *TxContext, n int) {
@@ -641,7 +639,7 @@ func (p *Player) PutStats(ctx *TxContext, k1 int32, k2 string, val int64) {
 	}
 	inner, ok := p.Stats[k1]
 	if !ok || inner == nil {
-		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterDelete, player: p, key_int32: k1, had2: true})
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterRestore, player: p, key_int32: k1, had: ok})
 		inner = make(map[string]int64)
 		p.Stats[k1] = inner
 	}
@@ -658,7 +656,7 @@ func (p *Player) GetStatsMapForWrite(ctx *TxContext, k1 int32) map[string]int64 
 	oldInner, existed := p.Stats[k1]
 	if !existed || oldInner == nil {
 		newInner := make(map[string]int64)
-		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterRestore, player: p, key_int32: k1, had2: !existed})
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterRestore, player: p, key_int32: k1, had: existed})
 		p.Stats[k1] = newInner
 		return newInner
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -20,10 +21,10 @@ type undoBuilder struct {
 	structs       []string
 	entries       []undoEntry
 	kindIndex     map[string]string
-	sliceSnaps    map[string]string // slice 元素类型 -> undoOp 字段名
-	scalarOlds    map[string]string // 标量类型字符串 -> undoOp 旧值字段名
-	keySlots      map[string]string // map key 类型 -> undoOp 字段名
-	innerMapSlots map[string]string // 内层 map 类型 -> undoOp 快照字段名
+	sliceSnaps    map[string]string   // slice 元素类型 -> undoOp 字段名
+	scalarOlds    map[string]string   // 标量类型字符串 -> undoOp 旧值字段名
+	keySlots      map[string]string   // map key 类型 -> undoOp 字段名
+	innerMapSlots map[string]string   // 内层 map 类型 -> undoOp 快照字段名
 	cloneHelpers  map[string]struct{} // 已发出的浅拷贝 helper 名（按 map 签名去重）
 }
 
@@ -169,9 +170,10 @@ func (ub *undoBuilder) innerMapSlotNameUsed(name string) bool {
 }
 
 // scalarOldField 为标量旧值注册 undoOp 字段（按 Go 类型字符串去重）。
+// 空类型串说明上游分类错误，显式失败避免静默生成错误代码。
 func (ub *undoBuilder) scalarOldField(goType string) string {
 	if goType == "" {
-		return "oldI64"
+		panic("undoproxy-gen: scalarOldField called with empty type")
 	}
 	if name, ok := ub.scalarOlds[goType]; ok {
 		return name
@@ -304,8 +306,7 @@ func (ub *undoBuilder) writeUndoOpStruct(b *bytes.Buffer) {
 	if len(ub.innerMapSlots) > 0 {
 		b.WriteString("\n")
 	}
-	b.WriteString("\thad  bool\n")
-	b.WriteString("\thad2 bool\n")
+	b.WriteString("\thad bool\n")
 	b.WriteString("}\n\n")
 }
 
@@ -366,13 +367,7 @@ func sortedMapKeys(m map[string]string) []string {
 	for t := range m {
 		types = append(types, t)
 	}
-	for i := 0; i < len(types); i++ {
-		for j := i + 1; j < len(types); j++ {
-			if types[j] < types[i] {
-				types[i], types[j] = types[j], types[i]
-			}
-		}
-	}
+	sort.Strings(types)
 	return types
 }
 

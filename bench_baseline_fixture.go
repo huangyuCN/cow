@@ -34,7 +34,7 @@ func sparseWriteMegaDirect32(p *Player) {
 		p.Items[0] = newTestItem(10000, "set0")
 	}
 	if len(p.Items) > 1 {
-		p.Items = append(p.Items[:len(p.Items)-1])
+		p.Items = p.Items[:len(p.Items)-1]
 	}
 	if len(p.Items) > 2 {
 		p.Items = p.Items[:2]

@@ -37,7 +37,6 @@ type undoOp struct {
 
 	snapItem []*Item
 	had      bool
-	had2     bool
 }
 
 // TxContext 单次请求作用域的 Undo 日志（单协程，无锁）。
@@ -196,9 +195,11 @@ func (p *Player) SetItemsAt(ctx *TxContext, i int, elem *Item) {
 
 func (p *Player) RemoveItemsAt(ctx *TxContext, i int) {
 	oldLen := len(p.Items)
-	tail := append([]*Item(nil), p.Items...)
-	p.Items = append(p.Items[:i], p.Items[i+1:]...)
-	ctx.push(undoOp{kind: undoKindPlayerItemsSliceRestore, player: p, snapItem: tail, oldInt: oldLen})
+	snap := append([]*Item(nil), p.Items...)
+	p.Items = make([]*Item, 0, oldLen-1)
+	p.Items = append(p.Items, snap[:i]...)
+	p.Items = append(p.Items, snap[i+1:]...)
+	ctx.push(undoOp{kind: undoKindPlayerItemsSliceRestore, player: p, snapItem: snap, oldInt: oldLen})
 }
 
 func (p *Player) TruncateItems(ctx *TxContext, n int) {

@@ -69,6 +69,12 @@ if h != nil {
 
 每个纳入类型图的 struct 生成 `CloneForWrite()`，供 `Get*ForWrite` 内部使用；业务一般通过 `Get*ForWrite` 间接使用。
 
+**fork 语义（浅拷贝）**：`CloneForWrite` 只复制 struct 本体，map/slice/指针字段与原根**共享底层结构**。若业务手动 fork 并保留原根：
+
+- `Remove*At` 为写时复制，不会移位污染原根；Rollback 后原根保持原状。
+- `Set*At` / `Append*` 仍写入共享底层结构：写入在 Rollback 前对原根可见，Rollback 会恢复值，但事务进行中两个根会互相可见。
+- 推荐始终维持**单活根**模型（同一时刻只有一个根接受写），fork 用例见 `undo_semantics_test.go`。
+
 ## 完整稀疏写示例
 
 与 benchmark / 测试一致的三处写：
@@ -96,6 +102,7 @@ func applySparseWrites(p *Player, ctx *TxContext) {
 
 - 必须通过代理写；直接 `p.Level = 1` 或 `delete(p.Heros, k)` 会被 `cowbarewrite` 拒绝（初始化/白名单除外）。
 - `json.Unmarshal` 等反射写静态不可见；Unmarshal 后仍须走代理（见 [limitations.md](limitations.md)）。
+- **生成 API 不做边界检查**：越界下标（`Set*At`/`Remove*At`）或缺失 key（`Get*ForWrite` 返回 nil 后继续解引用）会 panic，调用方须自行保证；这是刻意取舍，换取零防御开销的热路径。
 
 ## 相关链接
 

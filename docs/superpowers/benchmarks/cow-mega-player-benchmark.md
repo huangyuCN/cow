@@ -187,3 +187,34 @@ go test -run '^$' -bench='BenchmarkMega_' -benchmem -count=5 .
 ### 结论
 
 均匀覆盖根字段更贴近真实业务（多类型混合写），benchmark 数字高于「32×PutAssets」的乐观集中场景；**相对 DeepCopy 的数量级优势不变**，应用作容量规划时应按**操作种类混合**而非单一 `Put` 估算。
+
+## Run 2026-08-04（RemoveAt 写时复制的性能代价确认）
+
+| 项 | 值 |
+|---|---|
+| 主题 | fork 安全修复（`Remove*At` 写时复制）对 SparseWrite32 基准的影响，经用户确认接受代价、保留 COW |
+| 关联 | 审计 [reviews/2026-08-04-production-readiness-review.md](../reviews/2026-08-04-production-readiness-review.md) Important #1 |
+| 日期 | 2026-08-04 |
+| go version | `go1.26.5 darwin/arm64` |
+| OS / CPU | Darwin 25.5.0 / Apple M3 |
+| GOMAXPROCS | 8（默认） |
+| commit | 基线 `8241174`（修复前 HEAD，经临时 worktree 取数）；对照为工作区含全部修复（**未提交**） |
+
+### 命令
+
+```bash
+go test -run '^$' -bench='BenchmarkMega_UndoLog_SparseWrite32' -benchmem -count=5 .
+benchstat old.txt new.txt
+```
+
+### 对比（benchstat，5 次 run）
+
+| Benchmark | 前次 ns/op | 本次 ns/op | vs base | B/op 前→后 | allocs 前→后 |
+|-----------|-----------:|-----------:|--------:|-----------:|-------------:|
+| `BenchmarkMega_UndoLog_SparseWrite32_Rollback` | 6,615 | 8,062 | **+21.9%**（p=0.032） | 35.05→51.05KiB（+45.7%） | 31→32 |
+| `BenchmarkMega_UndoLog_SparseWrite32_Commit` | 1,337 | 1,383 | ~（p=0.135，不显著） | 1.051→1.097KiB | 26→28 |
+
+### 说明与结论
+
+- 代价来源：根级 slice `RemoveAt` 不再原地移位共享底层数组，改为「私有快照 + `make` 精确容量结果」两次独立分配（mega 档 Items 2000 元素，快照约 16KiB/op）；Rollback 基准每轮从初始态出发故全额体现，Commit 基准稳态后仅剩小 slice 扩容差异。
+- Rollback 仍 ~8µs，对 `BenchmarkMega_DeepCopyGen_SparseWrite32`（~228µs）保持 **~28×** 优势；用户确认该代价可接受（fork 语义正确性优先）。
