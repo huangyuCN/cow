@@ -2,7 +2,9 @@
 
 package gamestore
 
-import "sync"
+import (
+	"sync"
+)
 
 type undoKind uint16
 

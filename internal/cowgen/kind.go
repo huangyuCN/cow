@@ -50,5 +50,6 @@ type StructPlan struct {
 
 // Graph 类型图生成/改写计划。
 type Graph struct {
-	Structs []*StructPlan
+	Structs    []*StructPlan
+	Qualifiers *Qualifiers
 }

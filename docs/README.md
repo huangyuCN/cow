@@ -36,6 +36,7 @@
 - [undoproxy-gen 大规模类型图可编译性](superpowers/specs/2026-08-04-undoproxy-gen-scalable-codegen-design.md)（已实现）
 - [map GetForWrite 按字段名](superpowers/specs/2026-08-04-map-getforwrite-by-field-design.md)（已实现）
 - [undoOp 槽位类型泛化](superpowers/specs/2026-08-04-undoop-typed-slots-design.md)（已实现）
+- [生成物自动 import 跨包叶子类型](superpowers/specs/2026-08-04-generated-imports-leaf-types-design.md)（已实现）
 
 ## 设计与 benchmark
 

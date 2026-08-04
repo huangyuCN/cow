@@ -2,7 +2,9 @@
 
 package cow
 
-import "sync"
+import (
+	"sync"
+)
 
 type undoKind uint16
 

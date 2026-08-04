@@ -1,6 +1,8 @@
 // Package testdata 供 undoproxy-gen 黄金测试。
 package testdata
 
+import "github.com/huangyuCN/cow/cmd/undoproxy-gen/testdata/leafpkg"
+
 // +cow:undoproxy-gen=true
 type Player struct {
 	Gold     int64
@@ -86,4 +88,10 @@ type TypedSlotsRoot struct {
 	Score  Cat
 	InnerA map[int32]map[string]int64
 	InnerB map[int32]map[string]*Node
+}
+
+// +cow:undoproxy-gen=true
+type ImportLeafRoot struct {
+	ByEnum map[leafpkg.Enum]int64
+	Tag    leafpkg.Enum
 }

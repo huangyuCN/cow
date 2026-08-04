@@ -5,10 +5,10 @@ import (
 	"go/types"
 )
 
-func classifyField(t types.Type, pkg *types.Package) (*FieldPlan, error) {
-	plan := &FieldPlan{DeclaredType: TypeStr(pkg, t)}
+func classifyField(t types.Type, pkg *types.Package, q *Qualifiers) (*FieldPlan, error) {
+	plan := &FieldPlan{DeclaredType: TypeStr(pkg, t, q)}
 	peeled := peelNamedContainers(t, pkg)
-	return classifyType(peeled, pkg, plan, nil)
+	return classifyType(peeled, pkg, plan, nil, q)
 }
 
 // peelNamedContainers 剥离同包 map/slice/指针类型别名，直到裸容器或具名 struct/basic。
@@ -30,14 +30,14 @@ func peelNamedContainers(t types.Type, pkg *types.Package) types.Type {
 	return t
 }
 
-func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer) (*FieldPlan, error) {
+func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer, q *Qualifiers) (*FieldPlan, error) {
 	switch u := t.(type) {
 	case *types.Pointer:
 		elem := u.Elem()
 		if named, ok := elem.(*types.Named); ok {
 			if _, ok := named.Underlying().(*types.Struct); ok && named.Obj().Pkg() == pkg {
 				plan.Kind = KindPtrStruct
-				plan.LeafType = TypeStr(pkg, t)
+				plan.LeafType = TypeStr(pkg, t, q)
 				plan.ElemName = named.Obj().Name()
 				return plan, nil
 			}
@@ -45,8 +45,8 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 		return nil, fmt.Errorf("unsupported pointer %s", t)
 	case *types.Slice:
 		elem := u.Elem()
-		plan.SliceType = TypeStr(pkg, t)
-		plan.SliceElem = TypeStr(pkg, elem)
+		plan.SliceType = TypeStr(pkg, t, q)
+		plan.SliceElem = TypeStr(pkg, elem, q)
 		if len(keys) == 0 {
 			if _, ok := elem.(*types.Pointer); ok {
 				plan.Kind = KindSlicePtr
@@ -69,16 +69,16 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 		}
 		return plan, nil
 	case *types.Map:
-		keyT := TypeStr(pkg, u.Key())
+		keyT := TypeStr(pkg, u.Key(), q)
 		keys = append(keys, KeyLayer{KeyType: keyT})
 		elem := u.Elem()
 		if len(keys) == 1 {
-			return classifyMapElem(elem, pkg, plan, keys)
+			return classifyMapElem(elem, pkg, plan, keys, q)
 		}
 		if len(keys) == 2 {
-			return classifyMapMapElem(elem, pkg, plan, keys)
+			return classifyMapMapElem(elem, pkg, plan, keys, q)
 		}
-		return classifyType(elem, pkg, plan, keys)
+		return classifyType(elem, pkg, plan, keys, q)
 	case *types.Basic:
 		if len(keys) > 0 {
 			return nil, fmt.Errorf("unexpected scalar in nested path")
@@ -90,12 +90,12 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 		if _, ok := u.Underlying().(*types.Basic); ok {
 			if len(keys) > 0 {
 				plan.Kind = KindMapScalar
-				plan.LeafType = TypeStr(pkg, t)
+				plan.LeafType = TypeStr(pkg, t, q)
 				plan.Keys = keys
 				return plan, nil
 			}
 			plan.Kind = KindScalar
-			plan.LeafType = TypeStr(pkg, t)
+			plan.LeafType = TypeStr(pkg, t, q)
 			return plan, nil
 		}
 		if _, ok := u.Underlying().(*types.Struct); ok && u.Obj().Pkg() == pkg {
@@ -104,13 +104,13 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 			}
 			if len(keys) == 1 {
 				plan.Kind = KindMapStruct
-				plan.LeafType = TypeStr(pkg, t)
+				plan.LeafType = TypeStr(pkg, t, q)
 				plan.Keys = keys
 				return plan, nil
 			}
 			if len(keys) == 2 {
 				plan.Kind = KindMapMapStruct
-				plan.LeafType = TypeStr(pkg, t)
+				plan.LeafType = TypeStr(pkg, t, q)
 				plan.Keys = keys
 				return plan, nil
 			}
@@ -121,12 +121,12 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 	}
 }
 
-func classifyMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer) (*FieldPlan, error) {
+func classifyMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer, q *Qualifiers) (*FieldPlan, error) {
 	plan.Keys = keys
 	if m, ok := elem.(*types.Map); ok {
-		keys = append(keys, KeyLayer{KeyType: TypeStr(pkg, m.Key())})
-		plan.MapValue = TypeStr(pkg, elem)
-		return classifyMapMapElem(m.Elem(), pkg, plan, keys)
+		keys = append(keys, KeyLayer{KeyType: TypeStr(pkg, m.Key(), q)})
+		plan.MapValue = TypeStr(pkg, elem, q)
+		return classifyMapMapElem(m.Elem(), pkg, plan, keys, q)
 	}
 	switch e := elem.(type) {
 	case *types.Basic:
@@ -137,7 +137,7 @@ func classifyMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys 
 		if named, ok := e.Elem().(*types.Named); ok {
 			if _, ok := named.Underlying().(*types.Struct); ok && named.Obj().Pkg() == pkg {
 				plan.Kind = KindMapPtrStruct
-				plan.LeafType = TypeStr(pkg, elem)
+				plan.LeafType = TypeStr(pkg, elem, q)
 				plan.ElemName = Singular(plan.FieldName)
 				if plan.ElemName == plan.FieldName {
 					plan.ElemName = named.Obj().Name()
@@ -146,8 +146,8 @@ func classifyMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys 
 			}
 		}
 	case *types.Slice:
-		plan.SliceType = TypeStr(pkg, e)
-		plan.SliceElem = TypeStr(pkg, e.Elem())
+		plan.SliceType = TypeStr(pkg, e, q)
+		plan.SliceElem = TypeStr(pkg, e.Elem(), q)
 		plan.Keys = keys
 		if _, ok := e.Elem().(*types.Pointer); ok {
 			plan.Kind = KindMapSlicePtr
@@ -161,32 +161,32 @@ func classifyMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys 
 	case *types.Named:
 		if _, ok := e.Underlying().(*types.Struct); ok && e.Obj().Pkg() == pkg {
 			plan.Kind = KindMapStruct
-			plan.LeafType = TypeStr(pkg, elem)
+			plan.LeafType = TypeStr(pkg, elem, q)
 			return plan, nil
 		}
 	}
 	return nil, fmt.Errorf("unsupported map elem %s", elem)
 }
 
-func classifyMapMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer) (*FieldPlan, error) {
+func classifyMapMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyLayer, q *Qualifiers) (*FieldPlan, error) {
 	plan.Keys = keys
 	switch e := elem.(type) {
 	case *types.Basic:
 		plan.Kind = KindMapMapScalar
-		plan.LeafType = TypeStr(pkg, elem)
+		plan.LeafType = TypeStr(pkg, elem, q)
 		return plan, nil
 	case *types.Pointer:
 		if named, ok := e.Elem().(*types.Named); ok {
 			if _, ok := named.Underlying().(*types.Struct); ok && named.Obj().Pkg() == pkg {
 				plan.Kind = KindMapMapPtrStruct
-				plan.LeafType = TypeStr(pkg, elem)
+				plan.LeafType = TypeStr(pkg, elem, q)
 				plan.ElemName = named.Obj().Name()
 				return plan, nil
 			}
 		}
 	case *types.Slice:
-		plan.SliceType = TypeStr(pkg, e)
-		plan.SliceElem = TypeStr(pkg, e.Elem())
+		plan.SliceType = TypeStr(pkg, e, q)
+		plan.SliceElem = TypeStr(pkg, e.Elem(), q)
 		plan.MapValue = "map[" + keys[1].KeyType + "]" + plan.SliceType
 		if _, ok := e.Elem().(*types.Pointer); ok {
 			plan.Kind = KindMapMapSlicePtr
@@ -200,7 +200,7 @@ func classifyMapMapElem(elem types.Type, pkg *types.Package, plan *FieldPlan, ke
 	case *types.Named:
 		if _, ok := e.Underlying().(*types.Struct); ok && e.Obj().Pkg() == pkg {
 			plan.Kind = KindMapMapStruct
-			plan.LeafType = TypeStr(pkg, elem)
+			plan.LeafType = TypeStr(pkg, elem, q)
 			return plan, nil
 		}
 	}

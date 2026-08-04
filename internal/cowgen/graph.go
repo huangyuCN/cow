@@ -16,7 +16,8 @@ func BuildGraph(pkg *cowmon.PackageInfo) (*Graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &Graph{}
+	q := NewQualifiers()
+	g := &Graph{Qualifiers: q}
 	for _, named := range reachable {
 		st, ok := named.Underlying().(*types.Struct)
 		if !ok {
@@ -28,7 +29,7 @@ func BuildGraph(pkg *cowmon.PackageInfo) (*Graph, error) {
 			if !f.Exported() {
 				continue
 			}
-			plan, err := classifyField(f.Type(), pkg.Pkg)
+			plan, err := classifyField(f.Type(), pkg.Pkg, q)
 			if err != nil {
 				return nil, fmt.Errorf("%s.%s: %w", sp.Name, f.Name(), err)
 			}
@@ -42,13 +43,16 @@ func BuildGraph(pkg *cowmon.PackageInfo) (*Graph, error) {
 	return g, nil
 }
 
-// TypeStr 打印类型字符串（同包省略包名）。
-func TypeStr(pkg *types.Package, t types.Type) string {
+// TypeStr 打印类型字符串（同包省略包名；跨包经 q 取唯一别名）。
+func TypeStr(pkg *types.Package, t types.Type, q *Qualifiers) string {
 	return types.TypeString(t, func(p *types.Package) string {
 		if p == nil || p == pkg {
 			return ""
 		}
-		return p.Name()
+		if q == nil {
+			return p.Name()
+		}
+		return q.Alias(p)
 	})
 }
 
@@ -65,7 +69,7 @@ func BasicTypeStr(pkg *types.Package, t types.Type) string {
 			t = u.Underlying()
 			continue
 		default:
-			return TypeStr(pkg, t)
+			return TypeStr(pkg, t, nil)
 		}
 	}
 }
