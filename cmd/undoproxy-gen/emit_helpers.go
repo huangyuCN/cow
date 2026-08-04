@@ -92,21 +92,6 @@ func truncateLenParamName(recv string) string {
 	return "n"
 }
 
-func mapKeyField(keyType string) string {
-	switch keyType {
-	case "int32":
-		return "keyI32"
-	case "int64":
-		return "keyI64"
-	case "uint32":
-		return "keyU32"
-	case "uint64":
-		return "keyU64"
-	default:
-		return "keyString"
-	}
-}
-
 func sanitizeIdent(s string) string {
 	var b strings.Builder
 	for _, r := range s {

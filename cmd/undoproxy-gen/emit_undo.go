@@ -17,13 +17,14 @@ type undoEntry struct {
 
 // undoBuilder 收集结构化 Undo 的 kind 与 Rollback 分支，并驱动运行时代码生成。
 type undoBuilder struct {
-	structs      []string
-	entries      []undoEntry
-	kindIndex    map[string]string
-	sliceSnaps   map[string]string // slice 元素类型 -> undoOp 字段名
-	scalarOlds   map[string]string // 标量类型字符串 -> undoOp 旧值字段名
-	cloneHelpers map[string]struct{} // 已发出的浅拷贝 helper 名（按 map 签名去重）
-	innerMapSnap bool                // 是否需要 statsOld map[string]int64
+	structs       []string
+	entries       []undoEntry
+	kindIndex     map[string]string
+	sliceSnaps    map[string]string // slice 元素类型 -> undoOp 字段名
+	scalarOlds    map[string]string // 标量类型字符串 -> undoOp 旧值字段名
+	keySlots      map[string]string // map key 类型 -> undoOp 字段名
+	innerMapSlots map[string]string // 内层 map 类型 -> undoOp 快照字段名
+	cloneHelpers  map[string]struct{} // 已发出的浅拷贝 helper 名（按 map 签名去重）
 }
 
 func newUndoBuilder(g *cowgen.Graph) *undoBuilder {
@@ -38,11 +39,13 @@ func newUndoBuilder(g *cowgen.Graph) *undoBuilder {
 		names = append(names, n)
 	}
 	ub := &undoBuilder{
-		structs:      names,
-		kindIndex:    make(map[string]string),
-		sliceSnaps:   make(map[string]string),
-		scalarOlds:   make(map[string]string),
-		cloneHelpers: make(map[string]struct{}),
+		structs:       names,
+		kindIndex:     make(map[string]string),
+		sliceSnaps:    make(map[string]string),
+		scalarOlds:    make(map[string]string),
+		keySlots:      make(map[string]string),
+		innerMapSlots: make(map[string]string),
+		cloneHelpers:  make(map[string]struct{}),
 	}
 	// slice 下标/长度与标量 int 共用（生成代码中大量 oldInt: i / oldInt: oldLen）
 	ub.scalarOlds["int"] = "oldInt"
@@ -102,8 +105,67 @@ func (ub *undoBuilder) sliceFieldUsed(name string) bool {
 	return false
 }
 
-func (ub *undoBuilder) noteInnerMapSnap() {
-	ub.innerMapSnap = true
+func keySlotName(goType string) string {
+	return "key_" + sanitizeIdent(goType)
+}
+
+func innerMapSlotName(mapType string) string {
+	return "inner_" + sanitizeIdent(mapType)
+}
+
+// keySlot 为 map key 注册 undoOp 字段（按 Go 类型字符串去重）。
+func (ub *undoBuilder) keySlot(goType string) string {
+	if name, ok := ub.keySlots[goType]; ok {
+		return name
+	}
+	base := keySlotName(goType)
+	name := base
+	for i := 2; ub.keySlotNameUsed(name); i++ {
+		name = fmt.Sprintf("%s%d", base, i)
+	}
+	ub.keySlots[goType] = name
+	return name
+}
+
+// keySlotsFor 按 FieldPlan 各层 KeyType 登记并返回槽位字段名。
+func (ub *undoBuilder) keySlotsFor(plan cowgen.FieldPlan) []string {
+	out := make([]string, len(plan.Keys))
+	for i, k := range plan.Keys {
+		out[i] = ub.keySlot(k.KeyType)
+	}
+	return out
+}
+
+func (ub *undoBuilder) keySlotNameUsed(name string) bool {
+	for _, v := range ub.keySlots {
+		if v == name {
+			return true
+		}
+	}
+	return false
+}
+
+// innerMapSlot 为内层 map 快照注册 undoOp 字段（按 map 类型字符串去重）。
+func (ub *undoBuilder) innerMapSlot(mapType string) string {
+	if name, ok := ub.innerMapSlots[mapType]; ok {
+		return name
+	}
+	base := innerMapSlotName(mapType)
+	name := base
+	for i := 2; ub.innerMapSlotNameUsed(name); i++ {
+		name = fmt.Sprintf("%s%d", base, i)
+	}
+	ub.innerMapSlots[mapType] = name
+	return name
+}
+
+func (ub *undoBuilder) innerMapSlotNameUsed(name string) bool {
+	for _, v := range ub.innerMapSlots {
+		if v == name {
+			return true
+		}
+	}
+	return false
 }
 
 // scalarOldField 为标量旧值注册 undoOp 字段（按 Go 类型字符串去重）。
@@ -221,11 +283,12 @@ func (ub *undoBuilder) writeUndoOpStruct(b *bytes.Buffer) {
 	for _, sn := range ub.structs {
 		fmt.Fprintf(b, "\t%s *%s\n", recvLower(sn), sn)
 	}
-	b.WriteString("\tkeyI32    int32\n")
-	b.WriteString("\tkeyI64    int64\n")
-	b.WriteString("\tkeyU32    uint32\n")
-	b.WriteString("\tkeyU64    uint64\n")
-	b.WriteString("\tkeyString string\n\n")
+	for _, goType := range ub.sortedKeySlotTypes() {
+		fmt.Fprintf(b, "\t%s %s\n", ub.keySlots[goType], goType)
+	}
+	if len(ub.keySlots) > 0 {
+		b.WriteString("\n")
+	}
 	for _, goType := range ub.sortedScalarOldTypes() {
 		fmt.Fprintf(b, "\t%s %s\n", ub.scalarOlds[goType], goType)
 	}
@@ -235,8 +298,11 @@ func (ub *undoBuilder) writeUndoOpStruct(b *bytes.Buffer) {
 	for _, elemType := range ub.sortedSliceTypes() {
 		fmt.Fprintf(b, "\t%s []%s\n", ub.sliceSnaps[elemType], elemType)
 	}
-	if ub.innerMapSnap {
-		b.WriteString("\tinnerMapOld map[string]int64\n\n")
+	for _, mapType := range ub.sortedInnerMapSlotTypes() {
+		fmt.Fprintf(b, "\t%s %s\n", ub.innerMapSlots[mapType], mapType)
+	}
+	if len(ub.innerMapSlots) > 0 {
+		b.WriteString("\n")
 	}
 	b.WriteString("\thad  bool\n")
 	b.WriteString("\thad2 bool\n")
@@ -285,6 +351,14 @@ func (ub *undoBuilder) writeRollback(b *bytes.Buffer) {
 
 func (ub *undoBuilder) sortedScalarOldTypes() []string {
 	return sortedMapKeys(ub.scalarOlds)
+}
+
+func (ub *undoBuilder) sortedKeySlotTypes() []string {
+	return sortedMapKeys(ub.keySlots)
+}
+
+func (ub *undoBuilder) sortedInnerMapSlotTypes() []string {
+	return sortedMapKeys(ub.innerMapSlots)
 }
 
 func sortedMapKeys(m map[string]string) []string {

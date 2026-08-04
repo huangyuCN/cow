@@ -73,3 +73,17 @@ type NestBag struct {
 	Primary   map[int32]map[string]*Condition
 	Secondary map[int32]map[string]*Condition
 }
+
+type Cat int32
+
+type Node struct {
+	V int64
+}
+
+// +cow:undoproxy-gen=true
+type TypedSlotsRoot struct {
+	ByInt  map[int]map[string]*Node
+	Score  Cat
+	InnerA map[int32]map[string]int64
+	InnerB map[int32]map[string]*Node
+}

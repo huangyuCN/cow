@@ -68,18 +68,16 @@ const (
 )
 
 type undoOp struct {
-	kind      undoKind
-	hero      *Hero
-	item      *Item
-	mail      *Mail
-	player    *Player
-	quest     *Quest
-	skill     *Skill
-	keyI32    int32
-	keyI64    int64
-	keyU32    uint32
-	keyU64    uint64
-	keyString string
+	kind       undoKind
+	hero       *Hero
+	item       *Item
+	mail       *Mail
+	player     *Player
+	quest      *Quest
+	skill      *Skill
+	key_int32  int32
+	key_string string
+	key_uint64 uint64
 
 	oldInt    int
 	oldI32    int32
@@ -87,9 +85,9 @@ type undoOp struct {
 	oldString string
 	oldU64    uint64
 
-	snapItem    []*Item
-	snapint32   []int32
-	innerMapOld map[string]int64
+	snapItem               []*Item
+	snapint32              []int32
+	inner_map_string_int64 map[string]int64
 
 	had  bool
 	had2 bool
@@ -130,17 +128,17 @@ func (ctx *TxContext) Rollback() {
 		case undoKindHeroLevelScalarSet:
 			op.hero.Level = op.oldI32
 		case undoKindHeroSkillsMapPtrReplace:
-			op.hero.Skills[op.keyI32] = op.skill
+			op.hero.Skills[op.key_int32] = op.skill
 		case undoKindHeroSkillsMapEnsureNil:
 			op.hero.Skills = nil
 		case undoKindHeroSkillsMapKeySet:
 			if op.had {
-				op.hero.Skills[op.keyI32] = op.skill
+				op.hero.Skills[op.key_int32] = op.skill
 			} else {
-				delete(op.hero.Skills, op.keyI32)
+				delete(op.hero.Skills, op.key_int32)
 			}
 		case undoKindHeroSkillsMapKeyRemove:
-			op.hero.Skills[op.keyI32] = op.skill
+			op.hero.Skills[op.key_int32] = op.skill
 		case undoKindItemIdScalarSet:
 			op.item.Id = op.oldI64
 		case undoKindItemNameScalarSet:
@@ -159,14 +157,14 @@ func (ctx *TxContext) Rollback() {
 			op.player.Level = op.oldI32
 		case undoKindPlayerAssetsMapKeySet:
 			if op.had {
-				op.player.Assets[op.keyString] = op.oldI64
+				op.player.Assets[op.key_string] = op.oldI64
 			} else {
-				delete(op.player.Assets, op.keyString)
+				delete(op.player.Assets, op.key_string)
 			}
 		case undoKindPlayerAssetsMapEnsureNil:
 			op.player.Assets = nil
 		case undoKindPlayerAssetsMapKeyRemove:
-			op.player.Assets[op.keyString] = op.oldI64
+			op.player.Assets[op.key_string] = op.oldI64
 		case undoKindPlayerItemsSliceTruncate:
 			op.player.Items = op.player.Items[:op.oldInt]
 		case undoKindPlayerItemsSliceSetAt:
@@ -178,119 +176,119 @@ func (ctx *TxContext) Rollback() {
 		case undoKindPlayerMainHeroPtrSet:
 			op.player.MainHero = op.hero
 		case undoKindPlayerHerosMapPtrReplace:
-			op.player.Heros[op.keyI32] = op.hero
+			op.player.Heros[op.key_int32] = op.hero
 		case undoKindPlayerHerosMapEnsureNil:
 			op.player.Heros = nil
 		case undoKindPlayerHerosMapKeySet:
 			if op.had {
-				op.player.Heros[op.keyI32] = op.hero
+				op.player.Heros[op.key_int32] = op.hero
 			} else {
-				delete(op.player.Heros, op.keyI32)
+				delete(op.player.Heros, op.key_int32)
 			}
 		case undoKindPlayerHerosMapKeyRemove:
-			op.player.Heros[op.keyI32] = op.hero
+			op.player.Heros[op.key_int32] = op.hero
 		case undoKindPlayerBagsMapSliceAppend:
 			if op.had {
-				op.player.Bags[op.keyI32] = op.snapItem[:op.oldInt]
+				op.player.Bags[op.key_int32] = op.snapItem[:op.oldInt]
 			} else {
-				delete(op.player.Bags, op.keyI32)
+				delete(op.player.Bags, op.key_int32)
 			}
 		case undoKindPlayerBagsMapEnsureNil:
 			op.player.Bags = nil
 		case undoKindPlayerBagsMapSliceElemSet:
-			op.player.Bags[op.keyI32][op.oldInt] = op.item
+			op.player.Bags[op.key_int32][op.oldInt] = op.item
 		case undoKindPlayerBagsMapSliceRestore:
-			op.player.Bags[op.keyI32] = append([]*Item(nil), op.snapItem...)
+			op.player.Bags[op.key_int32] = append([]*Item(nil), op.snapItem...)
 		case undoKindPlayerBagsMapSlicePtrReplace:
-			op.player.Bags[op.keyI32][op.oldInt] = op.item
+			op.player.Bags[op.key_int32][op.oldInt] = op.item
 		case undoKindPlayerBagsMapSlicePut:
 			if op.had {
-				op.player.Bags[op.keyI32] = op.snapItem
+				op.player.Bags[op.key_int32] = op.snapItem
 			} else {
-				delete(op.player.Bags, op.keyI32)
+				delete(op.player.Bags, op.key_int32)
 			}
 		case undoKindPlayerStatsMapMapOuterDelete:
-			delete(op.player.Stats, op.keyI32)
+			delete(op.player.Stats, op.key_int32)
 		case undoKindPlayerStatsMapMapInnerKeySet:
-			inner := op.player.Stats[op.keyI32]
+			inner := op.player.Stats[op.key_int32]
 			if op.had {
-				inner[op.keyString] = op.oldI64
+				inner[op.key_string] = op.oldI64
 			} else {
-				delete(inner, op.keyString)
+				delete(inner, op.key_string)
 			}
 		case undoKindPlayerStatsMapEnsureNil:
 			op.player.Stats = nil
 		case undoKindPlayerStatsMapMapOuterRestore:
 			if op.had {
-				op.player.Stats[op.keyI32] = op.innerMapOld
+				op.player.Stats[op.key_int32] = op.inner_map_string_int64
 			} else {
-				delete(op.player.Stats, op.keyI32)
+				delete(op.player.Stats, op.key_int32)
 			}
 		case undoKindPlayerStatsMapMapInnerReplace:
-			op.player.Stats[op.keyI32] = op.innerMapOld
+			op.player.Stats[op.key_int32] = op.inner_map_string_int64
 		case undoKindPlayerStatsMapMapInnerKeyRemove:
-			inner := op.player.Stats[op.keyI32]
+			inner := op.player.Stats[op.key_int32]
 			if op.had {
-				inner[op.keyString] = op.oldI64
+				inner[op.key_string] = op.oldI64
 			} else {
-				delete(inner, op.keyString)
+				delete(inner, op.key_string)
 			}
 		case undoKindPlayerCooldownsMapSliceAppend:
 			if op.had {
-				op.player.Cooldowns[op.keyI32] = op.snapint32[:op.oldInt]
+				op.player.Cooldowns[op.key_int32] = op.snapint32[:op.oldInt]
 			} else {
-				delete(op.player.Cooldowns, op.keyI32)
+				delete(op.player.Cooldowns, op.key_int32)
 			}
 		case undoKindPlayerCooldownsMapEnsureNil:
 			op.player.Cooldowns = nil
 		case undoKindPlayerCooldownsMapSliceElemSet:
-			op.player.Cooldowns[op.keyI32][op.oldInt] = op.oldI32
+			op.player.Cooldowns[op.key_int32][op.oldInt] = op.oldI32
 		case undoKindPlayerCooldownsMapSliceRestore:
-			op.player.Cooldowns[op.keyI32] = append([]int32(nil), op.snapint32...)
+			op.player.Cooldowns[op.key_int32] = append([]int32(nil), op.snapint32...)
 		case undoKindPlayerCooldownsMapSlicePut:
 			if op.had {
-				op.player.Cooldowns[op.keyI32] = op.snapint32
+				op.player.Cooldowns[op.key_int32] = op.snapint32
 			} else {
-				delete(op.player.Cooldowns, op.keyI32)
+				delete(op.player.Cooldowns, op.key_int32)
 			}
 		case undoKindPlayerMailsMapPtrReplace:
-			op.player.Mails[op.keyU64] = op.mail
+			op.player.Mails[op.key_uint64] = op.mail
 		case undoKindPlayerMailsMapEnsureNil:
 			op.player.Mails = nil
 		case undoKindPlayerMailsMapKeySet:
 			if op.had {
-				op.player.Mails[op.keyU64] = op.mail
+				op.player.Mails[op.key_uint64] = op.mail
 			} else {
-				delete(op.player.Mails, op.keyU64)
+				delete(op.player.Mails, op.key_uint64)
 			}
 		case undoKindPlayerMailsMapKeyRemove:
-			op.player.Mails[op.keyU64] = op.mail
+			op.player.Mails[op.key_uint64] = op.mail
 		case undoKindPlayerQuestsMapPtrReplace:
-			op.player.Quests[op.keyI32] = op.quest
+			op.player.Quests[op.key_int32] = op.quest
 		case undoKindPlayerQuestsMapEnsureNil:
 			op.player.Quests = nil
 		case undoKindPlayerQuestsMapKeySet:
 			if op.had {
-				op.player.Quests[op.keyI32] = op.quest
+				op.player.Quests[op.key_int32] = op.quest
 			} else {
-				delete(op.player.Quests, op.keyI32)
+				delete(op.player.Quests, op.key_int32)
 			}
 		case undoKindPlayerQuestsMapKeyRemove:
-			op.player.Quests[op.keyI32] = op.quest
+			op.player.Quests[op.key_int32] = op.quest
 		case undoKindQuestIdScalarSet:
 			op.quest.Id = op.oldI32
 		case undoKindQuestStateScalarSet:
 			op.quest.State = op.oldI32
 		case undoKindQuestObjectivesMapKeySet:
 			if op.had {
-				op.quest.Objectives[op.keyI32] = op.oldI32
+				op.quest.Objectives[op.key_int32] = op.oldI32
 			} else {
-				delete(op.quest.Objectives, op.keyI32)
+				delete(op.quest.Objectives, op.key_int32)
 			}
 		case undoKindQuestObjectivesMapEnsureNil:
 			op.quest.Objectives = nil
 		case undoKindQuestObjectivesMapKeyRemove:
-			op.quest.Objectives[op.keyI32] = op.oldI32
+			op.quest.Objectives[op.key_int32] = op.oldI32
 		case undoKindSkillSkillIdScalarSet:
 			op.skill.SkillId = op.oldI32
 		case undoKindSkillLevelScalarSet:
@@ -333,7 +331,7 @@ func (h *Hero) GetSkillsForWrite(ctx *TxContext, k1 int32) *Skill {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.push(undoOp{kind: undoKindHeroSkillsMapPtrReplace, hero: h, keyI32: k1, skill: old})
+	ctx.push(undoOp{kind: undoKindHeroSkillsMapPtrReplace, hero: h, key_int32: k1, skill: old})
 	h.Skills[k1] = dirty
 	return dirty
 }
@@ -348,7 +346,7 @@ func (h *Hero) PutSkills(ctx *TxContext, k1 int32, val *Skill) {
 		val = val.CloneForWrite()
 	}
 	h.Skills[k1] = val
-	ctx.push(undoOp{kind: undoKindHeroSkillsMapKeySet, hero: h, keyI32: k1, skill: old, had: existed})
+	ctx.push(undoOp{kind: undoKindHeroSkillsMapKeySet, hero: h, key_int32: k1, skill: old, had: existed})
 }
 
 func (h *Hero) RemoveSkills(ctx *TxContext, k1 int32) {
@@ -360,7 +358,7 @@ func (h *Hero) RemoveSkills(ctx *TxContext, k1 int32) {
 		return
 	}
 	delete(h.Skills, k1)
-	ctx.push(undoOp{kind: undoKindHeroSkillsMapKeyRemove, hero: h, keyI32: k1, skill: old, had: true})
+	ctx.push(undoOp{kind: undoKindHeroSkillsMapKeyRemove, hero: h, key_int32: k1, skill: old, had: true})
 }
 
 // CloneForWrite 返回 Item 的可写浅拷贝。
@@ -462,7 +460,7 @@ func (p *Player) PutAssets(ctx *TxContext, k1 string, val int64) {
 	}
 	old, existed := p.Assets[k1]
 	p.Assets[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerAssetsMapKeySet, player: p, keyString: k1, oldI64: old, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerAssetsMapKeySet, player: p, key_string: k1, oldI64: old, had: existed})
 }
 
 func (p *Player) RemoveAssets(ctx *TxContext, k1 string) {
@@ -474,7 +472,7 @@ func (p *Player) RemoveAssets(ctx *TxContext, k1 string) {
 		return
 	}
 	delete(p.Assets, k1)
-	ctx.push(undoOp{kind: undoKindPlayerAssetsMapKeyRemove, player: p, keyString: k1, oldI64: old, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerAssetsMapKeyRemove, player: p, key_string: k1, oldI64: old, had: true})
 }
 
 func (p *Player) AppendItems(ctx *TxContext, elem *Item) {
@@ -532,7 +530,7 @@ func (p *Player) GetHerosForWrite(ctx *TxContext, k1 int32) *Hero {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.push(undoOp{kind: undoKindPlayerHerosMapPtrReplace, player: p, keyI32: k1, hero: old})
+	ctx.push(undoOp{kind: undoKindPlayerHerosMapPtrReplace, player: p, key_int32: k1, hero: old})
 	p.Heros[k1] = dirty
 	return dirty
 }
@@ -547,7 +545,7 @@ func (p *Player) PutHeros(ctx *TxContext, k1 int32, val *Hero) {
 		val = val.CloneForWrite()
 	}
 	p.Heros[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerHerosMapKeySet, player: p, keyI32: k1, hero: old, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerHerosMapKeySet, player: p, key_int32: k1, hero: old, had: existed})
 }
 
 func (p *Player) RemoveHeros(ctx *TxContext, k1 int32) {
@@ -559,7 +557,7 @@ func (p *Player) RemoveHeros(ctx *TxContext, k1 int32) {
 		return
 	}
 	delete(p.Heros, k1)
-	ctx.push(undoOp{kind: undoKindPlayerHerosMapKeyRemove, player: p, keyI32: k1, hero: old, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerHerosMapKeyRemove, player: p, key_int32: k1, hero: old, had: true})
 }
 
 func (p *Player) AppendBagsAt(ctx *TxContext, k1 int32, elem *Item) {
@@ -570,7 +568,7 @@ func (p *Player) AppendBagsAt(ctx *TxContext, k1 int32, elem *Item) {
 	prev, existed := p.Bags[k1]
 	oldLen := len(prev)
 	p.Bags[k1] = append(prev, elem)
-	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceAppend, player: p, keyI32: k1, snapItem: prev, oldInt: oldLen, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceAppend, player: p, key_int32: k1, snapItem: prev, oldInt: oldLen, had: existed})
 }
 
 func (p *Player) SetBagsAt(ctx *TxContext, k1 int32, i int, elem *Item) {
@@ -579,7 +577,7 @@ func (p *Player) SetBagsAt(ctx *TxContext, k1 int32, i int, elem *Item) {
 		p.Bags = make(map[int32][]*Item)
 	}
 	oldElem := p.Bags[k1][i]
-	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceElemSet, player: p, keyI32: k1, item: oldElem, oldInt: i})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceElemSet, player: p, key_int32: k1, item: oldElem, oldInt: i})
 	p.Bags[k1][i] = elem
 }
 
@@ -591,7 +589,7 @@ func (p *Player) RemoveBagsAt(ctx *TxContext, k1 int32, i int) {
 	old, existed := p.Bags[k1]
 	oldCopy := append([]*Item(nil), old...)
 	p.Bags[k1] = append(old[:i], old[i+1:]...)
-	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceRestore, player: p, keyI32: k1, snapItem: oldCopy, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceRestore, player: p, key_int32: k1, snapItem: oldCopy, had: existed})
 }
 
 func (p *Player) TruncateBags(ctx *TxContext, k1 int32, n int) {
@@ -605,7 +603,7 @@ func (p *Player) TruncateBags(ctx *TxContext, k1 int32, n int) {
 	}
 	oldCopy := append([]*Item(nil), old...)
 	p.Bags[k1] = old[:n]
-	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceRestore, player: p, keyI32: k1, snapItem: oldCopy, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSliceRestore, player: p, key_int32: k1, snapItem: oldCopy, had: existed})
 }
 
 func (p *Player) GetItemAtForWrite(ctx *TxContext, k1 int32, i int) *Item {
@@ -618,7 +616,7 @@ func (p *Player) GetItemAtForWrite(ctx *TxContext, k1 int32, i int) *Item {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.push(undoOp{kind: undoKindPlayerBagsMapSlicePtrReplace, player: p, keyI32: k1, item: old, oldInt: i})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSlicePtrReplace, player: p, key_int32: k1, item: old, oldInt: i})
 	p.Bags[k1][i] = dirty
 	return dirty
 }
@@ -631,7 +629,7 @@ func (p *Player) PutBags(ctx *TxContext, k1 int32, val []*Item) {
 	old, existed := p.Bags[k1]
 	oldCopy := append([]*Item(nil), old...)
 	p.Bags[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerBagsMapSlicePut, player: p, keyI32: k1, snapItem: oldCopy, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerBagsMapSlicePut, player: p, key_int32: k1, snapItem: oldCopy, had: existed})
 }
 
 func (p *Player) PutStats(ctx *TxContext, k1 int32, k2 string, val int64) {
@@ -641,13 +639,13 @@ func (p *Player) PutStats(ctx *TxContext, k1 int32, k2 string, val int64) {
 	}
 	inner, ok := p.Stats[k1]
 	if !ok || inner == nil {
-		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterDelete, player: p, had2: true})
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterDelete, player: p, key_int32: k1, had2: true})
 		inner = make(map[string]int64)
 		p.Stats[k1] = inner
 	}
 	old, existed := inner[k2]
 	inner[k2] = val
-	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerKeySet, player: p, keyI32: k1, keyString: k2, oldI64: old, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerKeySet, player: p, key_int32: k1, key_string: k2, oldI64: old, had: existed})
 }
 
 func (p *Player) GetStatsMapForWrite(ctx *TxContext, k1 int32) map[string]int64 {
@@ -658,12 +656,12 @@ func (p *Player) GetStatsMapForWrite(ctx *TxContext, k1 int32) map[string]int64 
 	oldInner, existed := p.Stats[k1]
 	if !existed || oldInner == nil {
 		newInner := make(map[string]int64)
-		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterRestore, player: p, keyI32: k1, had2: !existed})
+		ctx.push(undoOp{kind: undoKindPlayerStatsMapMapOuterRestore, player: p, key_int32: k1, had2: !existed})
 		p.Stats[k1] = newInner
 		return newInner
 	}
 	dirty := cloneMapShallow_string_int64(oldInner)
-	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerReplace, player: p, keyI32: k1, innerMapOld: oldInner, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerReplace, player: p, key_int32: k1, inner_map_string_int64: oldInner, had: true})
 	p.Stats[k1] = dirty
 	return dirty
 }
@@ -692,7 +690,7 @@ func (p *Player) RemoveStats(ctx *TxContext, k1 int32, k2 string) {
 		return
 	}
 	delete(inner, k2)
-	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerKeyRemove, player: p, keyI32: k1, keyString: k2, oldI64: old, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerStatsMapMapInnerKeyRemove, player: p, key_int32: k1, key_string: k2, oldI64: old, had: true})
 }
 
 func (p *Player) AppendCooldownsAt(ctx *TxContext, k1 int32, elem int32) {
@@ -703,7 +701,7 @@ func (p *Player) AppendCooldownsAt(ctx *TxContext, k1 int32, elem int32) {
 	prev, existed := p.Cooldowns[k1]
 	oldLen := len(prev)
 	p.Cooldowns[k1] = append(prev, elem)
-	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceAppend, player: p, keyI32: k1, snapint32: prev, oldInt: oldLen, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceAppend, player: p, key_int32: k1, snapint32: prev, oldInt: oldLen, had: existed})
 }
 
 func (p *Player) SetCooldownsAt(ctx *TxContext, k1 int32, i int, elem int32) {
@@ -712,7 +710,7 @@ func (p *Player) SetCooldownsAt(ctx *TxContext, k1 int32, i int, elem int32) {
 		p.Cooldowns = make(map[int32][]int32)
 	}
 	oldElem := p.Cooldowns[k1][i]
-	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceElemSet, player: p, keyI32: k1, oldI32: oldElem, oldInt: i})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceElemSet, player: p, key_int32: k1, oldI32: oldElem, oldInt: i})
 	p.Cooldowns[k1][i] = elem
 }
 
@@ -724,7 +722,7 @@ func (p *Player) RemoveCooldownsAt(ctx *TxContext, k1 int32, i int) {
 	old, existed := p.Cooldowns[k1]
 	oldCopy := append([]int32(nil), old...)
 	p.Cooldowns[k1] = append(old[:i], old[i+1:]...)
-	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceRestore, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceRestore, player: p, key_int32: k1, snapint32: oldCopy, had: existed})
 }
 
 func (p *Player) TruncateCooldowns(ctx *TxContext, k1 int32, n int) {
@@ -738,7 +736,7 @@ func (p *Player) TruncateCooldowns(ctx *TxContext, k1 int32, n int) {
 	}
 	oldCopy := append([]int32(nil), old...)
 	p.Cooldowns[k1] = old[:n]
-	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceRestore, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSliceRestore, player: p, key_int32: k1, snapint32: oldCopy, had: existed})
 }
 
 func (p *Player) PutCooldowns(ctx *TxContext, k1 int32, val []int32) {
@@ -749,7 +747,7 @@ func (p *Player) PutCooldowns(ctx *TxContext, k1 int32, val []int32) {
 	old, existed := p.Cooldowns[k1]
 	oldCopy := append([]int32(nil), old...)
 	p.Cooldowns[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSlicePut, player: p, keyI32: k1, snapint32: oldCopy, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerCooldownsMapSlicePut, player: p, key_int32: k1, snapint32: oldCopy, had: existed})
 }
 
 func (p *Player) GetMailsForWrite(ctx *TxContext, k1 uint64) *Mail {
@@ -762,7 +760,7 @@ func (p *Player) GetMailsForWrite(ctx *TxContext, k1 uint64) *Mail {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.push(undoOp{kind: undoKindPlayerMailsMapPtrReplace, player: p, keyU64: k1, mail: old})
+	ctx.push(undoOp{kind: undoKindPlayerMailsMapPtrReplace, player: p, key_uint64: k1, mail: old})
 	p.Mails[k1] = dirty
 	return dirty
 }
@@ -777,7 +775,7 @@ func (p *Player) PutMails(ctx *TxContext, k1 uint64, val *Mail) {
 		val = val.CloneForWrite()
 	}
 	p.Mails[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerMailsMapKeySet, player: p, keyU64: k1, mail: old, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerMailsMapKeySet, player: p, key_uint64: k1, mail: old, had: existed})
 }
 
 func (p *Player) RemoveMails(ctx *TxContext, k1 uint64) {
@@ -789,7 +787,7 @@ func (p *Player) RemoveMails(ctx *TxContext, k1 uint64) {
 		return
 	}
 	delete(p.Mails, k1)
-	ctx.push(undoOp{kind: undoKindPlayerMailsMapKeyRemove, player: p, keyU64: k1, mail: old, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerMailsMapKeyRemove, player: p, key_uint64: k1, mail: old, had: true})
 }
 
 func (p *Player) GetQuestsForWrite(ctx *TxContext, k1 int32) *Quest {
@@ -802,7 +800,7 @@ func (p *Player) GetQuestsForWrite(ctx *TxContext, k1 int32) *Quest {
 		return nil
 	}
 	dirty := old.CloneForWrite()
-	ctx.push(undoOp{kind: undoKindPlayerQuestsMapPtrReplace, player: p, keyI32: k1, quest: old})
+	ctx.push(undoOp{kind: undoKindPlayerQuestsMapPtrReplace, player: p, key_int32: k1, quest: old})
 	p.Quests[k1] = dirty
 	return dirty
 }
@@ -817,7 +815,7 @@ func (p *Player) PutQuests(ctx *TxContext, k1 int32, val *Quest) {
 		val = val.CloneForWrite()
 	}
 	p.Quests[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerQuestsMapKeySet, player: p, keyI32: k1, quest: old, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerQuestsMapKeySet, player: p, key_int32: k1, quest: old, had: existed})
 }
 
 func (p *Player) RemoveQuests(ctx *TxContext, k1 int32) {
@@ -829,7 +827,7 @@ func (p *Player) RemoveQuests(ctx *TxContext, k1 int32) {
 		return
 	}
 	delete(p.Quests, k1)
-	ctx.push(undoOp{kind: undoKindPlayerQuestsMapKeyRemove, player: p, keyI32: k1, quest: old, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerQuestsMapKeyRemove, player: p, key_int32: k1, quest: old, had: true})
 }
 
 // CloneForWrite 返回 Quest 的可写浅拷贝。
@@ -863,7 +861,7 @@ func (q *Quest) PutObjectives(ctx *TxContext, k1 int32, val int32) {
 	}
 	old, existed := q.Objectives[k1]
 	q.Objectives[k1] = val
-	ctx.push(undoOp{kind: undoKindQuestObjectivesMapKeySet, quest: q, keyI32: k1, oldI32: old, had: existed})
+	ctx.push(undoOp{kind: undoKindQuestObjectivesMapKeySet, quest: q, key_int32: k1, oldI32: old, had: existed})
 }
 
 func (q *Quest) RemoveObjectives(ctx *TxContext, k1 int32) {
@@ -875,7 +873,7 @@ func (q *Quest) RemoveObjectives(ctx *TxContext, k1 int32) {
 		return
 	}
 	delete(q.Objectives, k1)
-	ctx.push(undoOp{kind: undoKindQuestObjectivesMapKeyRemove, quest: q, keyI32: k1, oldI32: old, had: true})
+	ctx.push(undoOp{kind: undoKindQuestObjectivesMapKeyRemove, quest: q, key_int32: k1, oldI32: old, had: true})
 }
 
 // CloneForWrite 返回 Skill 的可写浅拷贝。

@@ -27,7 +27,7 @@ func emitStructuredMapRemove(b *bytes.Buffer, ub *undoBuilder, structName, r, ac
 	kp := cowgen.KeyParams(plan.Keys)
 	ka := cowgen.KeyArgs(plan.Keys)
 	recv := recvLower(structName)
-	keyField := mapKeyField(plan.Keys[0].KeyType)
+	keyField := ub.keySlot(plan.Keys[0].KeyType)
 	oldF := ub.leafStoreField(plan.LeafType)
 	kind := ub.kind(structName, field, "MapKeyRemove",
 		fmt.Sprintf("op.%s.%s[op.%s] = op.%s", recv, field, keyField, oldF))
@@ -46,9 +46,11 @@ func emitStructuredMapMapRemove(b *bytes.Buffer, ub *undoBuilder, structName, r,
 	kp := cowgen.KeyParams(plan.Keys)
 	recv := recvLower(structName)
 	oldF := ub.leafStoreField(plan.LeafType)
+	ks := ub.keySlotsFor(plan)
+	k1, k2 := ks[0], ks[1]
 	kindInner := ub.kind(structName, field, "MapMapInnerKeyRemove",
-		fmt.Sprintf(`inner := op.%s.%s[op.keyI32]
-if op.had { inner[op.keyString] = op.%s } else { delete(inner, op.keyString) }`, recv, field, oldF))
+		fmt.Sprintf(`inner := op.%s.%s[op.%s]
+if op.had { inner[op.%s] = op.%s } else { delete(inner, op.%s) }`, recv, field, k1, k2, oldF, k2))
 	fmt.Fprintf(b, "func (%s *%s) %s(ctx *TxContext, %s) {\n", r, structName, cowgen.MapRemoveName(field), kp)
 	fmt.Fprintf(b, "\tif %s == nil {\n\t\treturn\n\t}\n", acc)
 	fmt.Fprintf(b, "\tinner, ok := %s[k1]\n", acc)
@@ -56,7 +58,7 @@ if op.had { inner[op.keyString] = op.%s } else { delete(inner, op.keyString) }`,
 	fmt.Fprintf(b, "\told, existed := inner[k2]\n")
 	fmt.Fprintf(b, "\tif !existed {\n\t\treturn\n\t}\n")
 	fmt.Fprintf(b, "\tdelete(inner, k2)\n")
-	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, keyI32: k1, keyString: k2, %s: old, had: true})\n",
-		kindInner, ub.recvArg(structName, r), oldF)
+	fmt.Fprintf(b, "\tctx.push(undoOp{kind: %s, %s, %s: k1, %s: k2, %s: old, had: true})\n",
+		kindInner, ub.recvArg(structName, r), k1, k2, oldF)
 	fmt.Fprintf(b, "}\n\n")
 }

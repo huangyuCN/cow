@@ -57,6 +57,7 @@ go generate ./...
 ## 边界
 
 - 与 `TxContext`、`undoOp`、`Rollback` 一并写入 `zz_generated.undo_proxy.go`（按类型图裁剪字段）。
+- `undoOp` 的 map key / 内层 map / 标量旧值槽按类型图实际出现的精确 Go 类型收集；字段名分别为 `key_*` / `inner_*` / `old*`（例如 `key_int32`、`inner_map_string_int64`、`oldI64`），不再硬编码 `keyI32` 或 `innerMapOld map[string]int64`。
 - 支持同包内**多个** `// +cow:undoproxy-gen=true` 根类型。
 - 跨包嵌套字段、反射动态类型不在生成范围。
 - 生成运行时 `undoKind` 为 `uint16`；超过 65535 种操作时生成失败。

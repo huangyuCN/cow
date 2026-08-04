@@ -22,15 +22,11 @@ const (
 )
 
 type undoOp struct {
-	kind      undoKind
-	hero      *Hero
-	item      *Item
-	player    *Player
-	keyI32    int32
-	keyI64    int64
-	keyU32    uint32
-	keyU64    uint64
-	keyString string
+	kind       undoKind
+	hero       *Hero
+	item       *Item
+	player     *Player
+	key_string string
 
 	oldInt    int
 	oldI32    int32
@@ -82,14 +78,14 @@ func (ctx *TxContext) Rollback() {
 			op.player.Gold = op.oldI64
 		case undoKindPlayerWalletMapKeySet:
 			if op.had {
-				op.player.Wallet[op.keyString] = op.oldI64
+				op.player.Wallet[op.key_string] = op.oldI64
 			} else {
-				delete(op.player.Wallet, op.keyString)
+				delete(op.player.Wallet, op.key_string)
 			}
 		case undoKindPlayerWalletMapEnsureNil:
 			op.player.Wallet = nil
 		case undoKindPlayerWalletMapKeyRemove:
-			op.player.Wallet[op.keyString] = op.oldI64
+			op.player.Wallet[op.key_string] = op.oldI64
 		case undoKindPlayerItemsSliceTruncate:
 			op.player.Items = op.player.Items[:op.oldInt]
 		case undoKindPlayerItemsSliceSetAt:
@@ -169,7 +165,7 @@ func (p *Player) PutWallet(ctx *TxContext, k1 string, val int64) {
 	}
 	old, existed := p.Wallet[k1]
 	p.Wallet[k1] = val
-	ctx.push(undoOp{kind: undoKindPlayerWalletMapKeySet, player: p, keyString: k1, oldI64: old, had: existed})
+	ctx.push(undoOp{kind: undoKindPlayerWalletMapKeySet, player: p, key_string: k1, oldI64: old, had: existed})
 }
 
 func (p *Player) RemoveWallet(ctx *TxContext, k1 string) {
@@ -181,7 +177,7 @@ func (p *Player) RemoveWallet(ctx *TxContext, k1 string) {
 		return
 	}
 	delete(p.Wallet, k1)
-	ctx.push(undoOp{kind: undoKindPlayerWalletMapKeyRemove, player: p, keyString: k1, oldI64: old, had: true})
+	ctx.push(undoOp{kind: undoKindPlayerWalletMapKeyRemove, player: p, key_string: k1, oldI64: old, had: true})
 }
 
 func (p *Player) AppendItems(ctx *TxContext, elem *Item) {

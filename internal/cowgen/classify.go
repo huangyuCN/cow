@@ -69,7 +69,7 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 		}
 		return plan, nil
 	case *types.Map:
-		keyT := BasicTypeStr(pkg, u.Key())
+		keyT := TypeStr(pkg, u.Key())
 		keys = append(keys, KeyLayer{KeyType: keyT})
 		elem := u.Elem()
 		if len(keys) == 1 {
@@ -90,12 +90,12 @@ func classifyType(t types.Type, pkg *types.Package, plan *FieldPlan, keys []KeyL
 		if _, ok := u.Underlying().(*types.Basic); ok {
 			if len(keys) > 0 {
 				plan.Kind = KindMapScalar
-				plan.LeafType = BasicTypeStr(pkg, t)
+				plan.LeafType = TypeStr(pkg, t)
 				plan.Keys = keys
 				return plan, nil
 			}
 			plan.Kind = KindScalar
-			plan.LeafType = BasicTypeStr(pkg, t)
+			plan.LeafType = TypeStr(pkg, t)
 			return plan, nil
 		}
 		if _, ok := u.Underlying().(*types.Struct); ok && u.Obj().Pkg() == pkg {

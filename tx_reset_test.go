@@ -11,13 +11,13 @@ func TestTxContextReset_ClearsUndoOpReferences(t *testing.T) {
 		kind:      undoKindPlayerAssetsMapKeySet,
 		player:    p,
 		hero:      h,
-		keyString: "k",
-		snapItem:  []*Item{item},
-		had:       true,
-		had2:      true,
-		oldI32:    1,
-		oldI64:    2,
-		oldInt:    3,
+		key_string: "k",
+		snapItem:   []*Item{item},
+		had:        true,
+		had2:       true,
+		oldI32:     1,
+		oldI64:     2,
+		oldInt:     3,
 	})
 
 	used := len(ctx.ops)
@@ -33,7 +33,7 @@ func TestTxContextReset_ClearsUndoOpReferences(t *testing.T) {
 	backing := ctx.ops[:cap(ctx.ops)]
 	for i := 0; i < used; i++ {
 		op := backing[i]
-		if op.player != nil || op.hero != nil || op.keyString != "" {
+		if op.player != nil || op.hero != nil || op.key_string != "" {
 			t.Fatalf("op slot %d keeps references after reset", i)
 		}
 		if op.snapItem != nil {
