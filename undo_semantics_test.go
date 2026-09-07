@@ -8,6 +8,8 @@ import (
 // TestRollback_MapMapNilInnerSlotRestored 验证外层 key 原值为 nil map 时，
 // Rollback 应恢复该 nil 槽位而不是删除 key（外层 undo 记录必须携带 key 存在性）。
 func TestRollback_MapMapNilInnerSlotRestored(t *testing.T) {
+	// 构造被测初始状态：验证 nil map 槽位回滚语义必须直接初始化 Stats，非业务裸写。
+	// cow:allow-bare-write
 	p := &Player{Stats: map[int32]map[string]int64{5: nil}}
 
 	err := runScopedWithRollback(p, func(ctx *TxContext) error {
